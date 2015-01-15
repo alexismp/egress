@@ -15,6 +15,7 @@
  */
 package org.alexismp.egress;
 
+import com.firebase.client.AuthData;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
@@ -46,6 +47,7 @@ public class addStationServlet extends HttpServlet {
         super.init();
         firebase = new Firebase("https://shining-inferno-9452.firebaseio.com");
         geofire = new GeoFire(firebase.child("_geofire"));
+        login();
         emptyOwner.put("owner", "");
         randomOwner.put("owner", "foo@bar.com");
     }
@@ -72,37 +74,45 @@ public class addStationServlet extends HttpServlet {
             out.println("<body>");
             out.println("<h1>Updating location for all stations... </h1>");
 
-            for (int i = 1; i <= 6441; i++) {
-                final String key = "" + i;
-                firebase.child(key).addValueEventListener(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot snapshot) {
-                        System.out.println(snapshot.getValue());
-                        // reset values and add some random values
-                        int random = (int) (Math.random() * 3);
-                        if (random % 3 == 0) {
-                            snapshot.getRef().updateChildren(emptyOwner);
-                        } else {
-                            snapshot.getRef().updateChildren(randomOwner);
-                        }
-
-                        System.out.println("Adding station [" + key + "] to Geofire ... ");
-                        GeoLocation location = new GeoLocation(
-                                Float.parseFloat(snapshot.child("LATITUDE").getValue().toString()),
-                                Float.parseFloat(snapshot.child("LONGITUDE").getValue().toString()));
-                        geofire.setLocation(key, location);
-                    }
-
-                    @Override
-                    public void onCancelled(FirebaseError error) {
-                    }
-                });
-
-            }
+            resetData();
 
             out.println("<h1>... done.</h1>");
             out.println("</body>");
             out.println("</html>");
+        }
+    }
+
+    // adds Geofire location for all 6441 stations
+    private void resetData() {
+        for (int i = 1; i <= 6441; i++) {
+            final String key = "" + i;
+            // use single event listener so no further callbacks are made
+            // (and there is no need to remove the event listener)
+            firebase.child(key).addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(DataSnapshot snapshot) {
+                    // Add an empty "owner" attribute to existing data
+                    // randomly set this attribute to "foo@bar.com"
+                    int random = (int) (Math.random() * 3);
+                    if (random % 3 == 0) {
+                        snapshot.getRef().updateChildren(emptyOwner);
+                    } else {
+                        snapshot.getRef().updateChildren(randomOwner);
+                    }
+
+                    // Adding Geofire data to firebase (under "[root]/_geofire" )
+                    System.out.println("Adding station [" + key + "] to Geofire ... ");
+                    GeoLocation location = new GeoLocation(
+                            Float.parseFloat(snapshot.child("LATITUDE").getValue().toString()),
+                            Float.parseFloat(snapshot.child("LONGITUDE").getValue().toString()));
+                    geofire.setLocation(key, location);
+                }
+
+                @Override
+                public void onCancelled(FirebaseError error) {
+                }
+            });
+
         }
     }
 
@@ -144,5 +154,35 @@ public class addStationServlet extends HttpServlet {
     public String getServletInfo() {
         return "Short description";
     }// </editor-fold>
+
+    private void login() {
+        System.out.println("Loging in...");
+        firebase.authWithPassword("alexis.mp@gmail.com", "foo",
+                new Firebase.AuthResultHandler() {
+                    @Override
+                    public void onAuthenticated(AuthData authData) {
+                        System.out.println("Authenticated with password : " + authData.getProviderData().get("displayName"));
+                        // Authentication just completed successfully :)
+                    }
+
+                    @Override
+                    public void onAuthenticationError(FirebaseError error) {
+                        // Something went wrong :(
+                    }
+                });
+
+        firebase.authWithOAuthToken("google", "<OAuth Token>", new Firebase.AuthResultHandler() {
+            @Override
+            public void onAuthenticated(AuthData authData) {
+                System.out.println("Authenticated with Google: " + authData);
+                // the Google user is now authenticated with Firebase
+            }
+
+            @Override
+            public void onAuthenticationError(FirebaseError firebaseError) {
+                // there was an error
+            }
+        });
+    }
 
 }
