@@ -3,7 +3,8 @@
     <application>egress-stations</application>
     <version>${appengine.app.version}</version>
     <threadsafe>true</threadsafe>
-    <vm>true</vm>
+    <!--managed VM is required for Firebase-->
+    <!--<vm>true</vm>-->
 
     <system-properties>
         <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>

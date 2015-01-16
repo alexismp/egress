@@ -1,44 +1,50 @@
 <!DOCTYPE HTML>
 <html>
-<head>
-  <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <head>
+        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
 
-  <title>Nearby train station Locations With GeoFire 2.0</title>
+        <title>Nearby train station Locations With GeoFire 2.0</title>
 
-  <!-- STYLESHEETS -->
-  <link href="css/animate.min.css" rel="stylesheet">
-  <link href="css/site.css" rel="stylesheet">
-</head>
+        <!-- STYLESHEETS -->
+        <link href="css/animate.min.css" rel="stylesheet">
+        <link href="css/site.css" rel="stylesheet">
+    </head>
 
-<body>
-  <!-- MAP -->
-  <div id="map-canvas"></div>
+    <body>
+        <!-- MAP -->
+        <div id="map-canvas"></div>
 
 
-  <!-- JAVASCRIPT -->
-  <!-- Google Maps -->
-  <!-- // TODO: update key -->
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6U2ExB8yLDc7RiGPYK3C3yIzDPpyFJE0&sensor=false"></script>
+        <div id="userlegend" style="font-size: x-large; background: white; padding: 10px;">
+            <!--No logged-in User!-->
+        </div>
 
-  <!-- Firebase -->
-  <script src="https://cdn.firebase.com/js/client/2.0.2/firebase.js"></script>
 
-  <!-- RSVP -->
-  <script src="js/vendor/rsvp.min.js"></script>
+        <!-- JAVASCRIPT -->
+  
+        <!-- Google Maps -->
+        <!-- // TODO: update key -->
+        <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA6U2ExB8yLDc7RiGPYK3C3yIzDPpyFJE0&sensor=false"></script>
 
-  <!-- GeoFire -->
-  <script src="js/vendor/geofire.min.js"></script>
+        <!-- Firebase -->
+        <script src="https://cdn.firebase.com/js/client/2.0.2/firebase.js"></script>
 
-  <!-- Lo-Dash -->
-  <script src="js/vendor/lodash.min.js"></script>
+        <!-- RSVP -->
+        <script src="js/vendor/rsvp.min.js"></script>
 
-  <!-- Custom JavaScript -->
-  <script src="js/trainEgress.js"></script>
-  <script src="js/maps.js"></script>
+        <!-- GeoFire -->
+        <script src="js/vendor/geofire.min.js"></script>
 
-  <script type="text/javascript">
-    google.maps.event.addDomListener(window, "load", initializeMap);
-  </script>
+        <!-- Lo-Dash -->
+        <script src="js/vendor/lodash.min.js"></script>
 
-</body>
+        <!-- Custom JavaScript -->
+        <script src="js/trainEgress.js"></script>
+        <script src="js/maps.js"></script>
+
+        <script type="text/javascript">
+            google.maps.event.addDomListener(window, "load", initializeMap);
+        </script>
+
+    </body>
 </html>
