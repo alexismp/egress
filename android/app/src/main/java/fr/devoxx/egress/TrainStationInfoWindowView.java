@@ -5,12 +5,9 @@ import android.util.AttributeSet;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import com.firebase.client.DataSnapshot;
-
-import java.util.Map;
-
 import butterknife.ButterKnife;
 import butterknife.InjectView;
+import fr.devoxx.egress.model.Station;
 
 public class TrainStationInfoWindowView extends LinearLayout {
 
@@ -35,9 +32,8 @@ public class TrainStationInfoWindowView extends LinearLayout {
         ButterKnife.inject(this);
     }
 
-    public void bind(DataSnapshot dataSnapshot) {
-        Map<String, Object> dataValues = (Map<String, Object>) dataSnapshot.getValue();
-        nameView.setText((String) dataValues.get("NOM"));
-        ownerView.setText((String) dataValues.get("owner"));
+    public void bind(Station station) {
+        nameView.setText(station.getName());
+        ownerView.setText(station.getOwner());
     }
 }

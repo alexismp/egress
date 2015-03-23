@@ -7,8 +7,10 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
 import android.util.Property;
+import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.Toast;
 
 import com.firebase.client.AuthData;
 import com.firebase.client.DataSnapshot;
@@ -29,19 +31,29 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.melnykov.fab.FloatingActionButton;
 
 import java.util.HashMap;
 import java.util.Map;
 
+import butterknife.ButterKnife;
+import butterknife.InjectView;
+import butterknife.OnClick;
 import fr.devoxx.egress.internal.LatLngInterpolator;
+import fr.devoxx.egress.model.Player;
+import fr.devoxx.egress.model.Station;
 import timber.log.Timber;
+
+import static android.widget.Toast.LENGTH_LONG;
 
 public class MapsActivity extends FragmentActivity {
 
-    public static final String EXTRA_OAUTH_TOKEN = "fr.devoxx.egress.EXTRA_OAUTH_TOKEN";
+    public static final String EXTRA_PLAYER = "fr.devoxx.egress.EXTRA_PLAYER";
 
     private static final LatLng PARIS_GEO_POSITION = new LatLng(48.8534100, 2.3488000);
     private static final LatLngInterpolator latLngInterpolator = new LatLngInterpolator.LinearFixed();
+
+    @InjectView(R.id.add_action) FloatingActionButton addActionButton;
 
     private GoogleMap map; // Might be null if Google Play services APK is not available.
 
@@ -53,22 +65,39 @@ public class MapsActivity extends FragmentActivity {
     private int circleFillColor;
     private ObjectAnimator circleHintAnimator;
 
-    private Map<String, Marker> markersCache = new HashMap<>();
-    private BitmapDescriptor markerIconDescriptor;
-    private Map<Marker, DataSnapshot> dataSnapshotCache = new HashMap<>();
+    private Map<String, Marker> displayedMarkersCache = new HashMap<>();
+    private Map<Marker, Station> displayedStationsCache = new HashMap<>();
+
+    private BitmapDescriptor freeMarkerIconDescriptor;
+    private BitmapDescriptor lockedMarkerIconDescriptor;
+    private BitmapDescriptor ownedMarkerIconDescriptor;
+
+    private float hideActionButtonOffset;
+
+    private Marker selectedMarker;
+
+    private StationValueEventListener stationValueEventListener = new StationValueEventListener();
+    private Player player;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.home_activity);
-        initGeoFire();
+        setContentView(R.layout.maps_activity);
+        ButterKnife.inject(this);
+        setupActionButton();
+        setupGeoFire();
         setUpMapIfNeeded();
     }
 
-    private void initGeoFire() {
-        String token = getIntent().getStringExtra(EXTRA_OAUTH_TOKEN);
+    private void setupActionButton() {
+        hideActionButtonOffset = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 100, getResources().getDisplayMetrics());
+        addActionButton.setTranslationY(hideActionButtonOffset);
+    }
+
+    private void setupGeoFire() {
+        player = getIntent().getParcelableExtra(EXTRA_PLAYER);
         firebase = new Firebase("https://shining-inferno-9452.firebaseio.com");
-        firebase.authWithOAuthToken("google", token, new Firebase.AuthResultHandler() {
+        firebase.authWithOAuthToken("google", player.token, new Firebase.AuthResultHandler() {
             @Override
             public void onAuthenticated(AuthData authData) {
                 Timber.d("Authenticated");
@@ -77,6 +106,7 @@ public class MapsActivity extends FragmentActivity {
             @Override
             public void onAuthenticationError(FirebaseError firebaseError) {
                 Timber.d("Authentication error");
+                Toast.makeText(MapsActivity.this, R.string.error, LENGTH_LONG).show();
             }
         });
         geoFire = new GeoFire(firebase.child("_geofire"));
@@ -124,7 +154,11 @@ public class MapsActivity extends FragmentActivity {
      * This should only be called once and when we are sure that {@link #map} is not null.
      */
     private void setUpMap() {
-        markerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station);
+        map.getUiSettings().setMapToolbarEnabled(false);
+
+        freeMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station);
+        lockedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_locked);
+        ownedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_owned);
         setupCircleHint();
 
         map.moveCamera(CameraUpdateFactory.newLatLngZoom(PARIS_GEO_POSITION, 13));
@@ -134,30 +168,14 @@ public class MapsActivity extends FragmentActivity {
             @Override
             public void onKeyEntered(final String key, final GeoLocation location) {
                 Timber.d("On key entered " + location);
-                firebase.child(key).addValueEventListener(new ValueEventListener() {
-                    @Override
-                    public void onDataChange(DataSnapshot dataSnapshot) {
-                        Map<String, Object> dataValues = (Map<String, Object>) dataSnapshot.getValue();
-                        Marker marker = map.addMarker(new MarkerOptions()
-                                .position(new LatLng(location.latitude, location.longitude))
-                                .visible(PARIS_GEO_POSITION.equals(circle.getCenter()))
-                                .title((String) dataValues.get("NOM"))
-                                .icon(markerIconDescriptor));
-                        markersCache.put(key, marker);
-                        dataSnapshotCache.put(marker, dataSnapshot);
-                    }
-
-                    @Override
-                    public void onCancelled(FirebaseError firebaseError) {
-
-                    }
-                });
+                firebase.child(key).addValueEventListener(stationValueEventListener);
             }
 
             @Override
             public void onKeyExited(String key) {
                 Timber.d("On key exited " + key);
-                markersCache.remove(key).remove();
+                firebase.child(key).removeEventListener(stationValueEventListener);
+                displayedMarkersCache.remove(key).remove();
             }
 
             @Override
@@ -179,8 +197,10 @@ public class MapsActivity extends FragmentActivity {
         map.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(LatLng latLng) {
+                selectedMarker = null;
                 animateCircle(circle, latLng, latLngInterpolator);
                 geoQuery.setCenter(new GeoLocation(latLng.latitude, latLng.longitude));
+                addActionButton.animate().translationY(hideActionButtonOffset).start();
             }
         });
         map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
@@ -191,16 +211,21 @@ public class MapsActivity extends FragmentActivity {
 
             @Override
             public View getInfoContents(Marker marker) {
+                selectedMarker = marker;
                 TrainStationInfoWindowView infoWindowView = (TrainStationInfoWindowView) LayoutInflater.from(MapsActivity.this).
                         inflate(R.layout.train_station_info_window_view, null);
-                infoWindowView.bind(dataSnapshotCache.get(marker));
+                Station station = displayedStationsCache.get(marker);
+                infoWindowView.bind(station);
+                addActionButton.animate().translationY(station.isFree() ? 0 : hideActionButtonOffset).start();
                 return infoWindowView;
             }
         });
         map.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
             @Override
             public void onInfoWindowClick(Marker marker) {
+                selectedMarker = null;
                 marker.hideInfoWindow();
+                addActionButton.animate().translationY(hideActionButtonOffset).start();
             }
         });
     }
@@ -232,7 +257,7 @@ public class MapsActivity extends FragmentActivity {
 
             @Override
             public void onAnimationStart(Animator animation) {
-                for (Marker marker : markersCache.values()) {
+                for (Marker marker : displayedMarkersCache.values()) {
                     marker.setVisible(true);
                 }
                 circle.setFillColor(Color.TRANSPARENT);
@@ -242,7 +267,7 @@ public class MapsActivity extends FragmentActivity {
             public void onAnimationEnd(Animator animation) {
                 if (!cancelled) {
                     circle.setFillColor(circleFillColor);
-                    for (Marker marker : markersCache.values()) {
+                    for (Marker marker : displayedMarkersCache.values()) {
                         marker.setVisible(true);
                     }
                 }
@@ -260,5 +285,55 @@ public class MapsActivity extends FragmentActivity {
         });
         circleHintAnimator.setDuration(1000);
         circleHintAnimator.start();
+    }
+
+    @OnClick(R.id.add_action)
+    public void onAddActionClicked() {
+        Station station = displayedStationsCache.get(selectedMarker);
+        Map<String, Object> map = new HashMap<>();
+        map.put(Station.FIELD_OWNER, player.name);
+        map.put(Station.FIELD_OWNER_MAIL, player.mail);
+        map.put(Station.FIELD_WHEN, System.currentTimeMillis());
+        firebase.child(station.getKey()).updateChildren(map, new Firebase.CompletionListener() {
+            @Override
+            public void onComplete(FirebaseError firebaseError, Firebase firebase) {
+                if (firebaseError != null) {
+                    Toast.makeText(MapsActivity.this, R.string.error, LENGTH_LONG).show();
+                } else {
+                    addActionButton.animate().translationY(hideActionButtonOffset).start();
+                }
+            }
+        });
+    }
+
+    private class StationValueEventListener implements ValueEventListener {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            Station station = new Station(dataSnapshot);
+
+            Marker marker = displayedMarkersCache.get(station.getKey());
+            if (marker == null) {
+                marker = map.addMarker(new MarkerOptions()
+                        .position(new LatLng(station.getLatitude(), station.getLongitude()))
+                        .visible(PARIS_GEO_POSITION.equals(circle.getCenter()))
+                        .title(station.getName()));
+            }
+            marker.setIcon(getMarkerIcon(station));
+
+            displayedMarkersCache.put(dataSnapshot.getKey(), marker);
+            displayedStationsCache.put(marker, station);
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+
+        }
+    }
+
+    private BitmapDescriptor getMarkerIcon(Station station) {
+        if (station.isFree()) {
+            return freeMarkerIconDescriptor;
+        }
+        return player.mail.equalsIgnoreCase(station.getOwnerMail()) ? ownedMarkerIconDescriptor : lockedMarkerIconDescriptor;
     }
 }
