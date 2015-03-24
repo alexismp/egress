@@ -140,6 +140,7 @@ public class LoginActivity extends Activity {
                         Intent intent = new Intent(LoginActivity.this, MapsActivity.class);
                         intent.putExtra(MapsActivity.EXTRA_PLAYER, player);
                         startActivity(intent);
+                        finish();
                     }
                 });
     }
