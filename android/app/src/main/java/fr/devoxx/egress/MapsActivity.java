@@ -42,6 +42,8 @@ import butterknife.OnClick;
 import fr.devoxx.egress.internal.LatLngInterpolator;
 import fr.devoxx.egress.model.Player;
 import fr.devoxx.egress.model.Station;
+import icepick.Icepick;
+import icepick.Icicle;
 import timber.log.Timber;
 
 import static android.widget.Toast.LENGTH_LONG;
@@ -62,6 +64,8 @@ public class MapsActivity extends FragmentActivity {
     private GeoQuery geoQuery;
 
     private Circle circle;
+    private boolean circleHasMoved = false;
+    @Icicle LatLng lastCircleCenter;
     private int circleFillColor;
     private ObjectAnimator circleHintAnimator;
 
@@ -77,6 +81,7 @@ public class MapsActivity extends FragmentActivity {
     private Marker selectedMarker;
 
     private StationValueEventListener stationValueEventListener = new StationValueEventListener();
+
     private Player player;
 
     @Override
@@ -84,10 +89,18 @@ public class MapsActivity extends FragmentActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.maps_activity);
         ButterKnife.inject(this);
+        Icepick.restoreInstanceState(this, savedInstanceState);
         setupActionButton();
         setupGeoFire();
         setUpMapIfNeeded();
     }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        Icepick.saveInstanceState(this, outState);
+    }
+
 
     private void setupActionButton() {
         hideActionButtonOffset = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 100, getResources().getDisplayMetrics());
@@ -154,6 +167,10 @@ public class MapsActivity extends FragmentActivity {
      * This should only be called once and when we are sure that {@link #map} is not null.
      */
     private void setUpMap() {
+        if (lastCircleCenter == null) {
+            lastCircleCenter = PARIS_GEO_POSITION;
+        }
+
         map.getUiSettings().setMapToolbarEnabled(false);
 
         freeMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station);
@@ -161,9 +178,9 @@ public class MapsActivity extends FragmentActivity {
         ownedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_owned);
         setupCircleHint();
 
-        map.moveCamera(CameraUpdateFactory.newLatLngZoom(PARIS_GEO_POSITION, 13));
+        map.moveCamera(CameraUpdateFactory.newLatLngZoom(lastCircleCenter, 13));
 
-        geoQuery = geoFire.queryAtLocation(new GeoLocation(48.8534100, 2.3488000), 1);
+        geoQuery = geoFire.queryAtLocation(new GeoLocation(lastCircleCenter.latitude, lastCircleCenter.longitude), 1);
         geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
             @Override
             public void onKeyEntered(final String key, final GeoLocation location) {
@@ -198,6 +215,8 @@ public class MapsActivity extends FragmentActivity {
             @Override
             public void onMapClick(LatLng latLng) {
                 selectedMarker = null;
+                lastCircleCenter = latLng;
+                circleHasMoved = true;
                 animateCircle(circle, latLng, latLngInterpolator);
                 geoQuery.setCenter(new GeoLocation(latLng.latitude, latLng.longitude));
                 addActionButton.animate().translationY(hideActionButtonOffset).start();
@@ -233,7 +252,7 @@ public class MapsActivity extends FragmentActivity {
     private void setupCircleHint() {
         circleFillColor = getResources().getColor(R.color.circle_color);
         CircleOptions circleOptions = new CircleOptions()
-                .center(PARIS_GEO_POSITION)
+                .center(lastCircleCenter)
                 .fillColor(circleFillColor)
                 .strokeColor(getResources().getColor(R.color.circle_color))
                 .radius(1000);
@@ -315,7 +334,7 @@ public class MapsActivity extends FragmentActivity {
             if (marker == null) {
                 marker = map.addMarker(new MarkerOptions()
                         .position(new LatLng(station.getLatitude(), station.getLongitude()))
-                        .visible(PARIS_GEO_POSITION.equals(circle.getCenter()))
+                        .visible(!circleHasMoved)
                         .title(station.getName()));
             }
             marker.setIcon(getMarkerIcon(station));
