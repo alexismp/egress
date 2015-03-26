@@ -4,13 +4,17 @@ import android.app.Activity;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.os.Bundle;
+import android.view.View;
+import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.plus.Plus;
 
 import butterknife.ButterKnife;
+import butterknife.InjectView;
 import butterknife.OnClick;
 import fr.devoxx.egress.internal.Observables;
 import fr.devoxx.egress.model.Player;
@@ -30,11 +34,16 @@ public class LoginActivity extends Activity {
     private ConnectionResult connectionResult;
     private boolean intentInProgress;
 
+    @InjectView(R.id.sign_in_button) SignInButton signInButton;
+    @InjectView(R.id.sign_in_progress) ProgressBar signInProgress;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.login_activity);
         ButterKnife.inject(this);
+        signInButton.setVisibility(View.VISIBLE);
+        signInProgress.setVisibility(View.GONE);
         googleApiClient = new GoogleApiClient.Builder(this)
                 .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
                     @Override
@@ -120,6 +129,8 @@ public class LoginActivity extends Activity {
     }
 
     private void goToMapsScreen() {
+        signInButton.setVisibility(View.GONE);
+        signInProgress.setVisibility(View.VISIBLE);
         final String mail = Plus.AccountApi.getAccountName(googleApiClient);
         bindActivity(this, Observables.fetchPlayerInfos(LoginActivity.this, googleApiClient, mail))
                 .subscribeOn(Schedulers.newThread())
@@ -133,10 +144,14 @@ public class LoginActivity extends Activity {
                     @Override
                     public void onError(Throwable e) {
                         Toast.makeText(LoginActivity.this, R.string.error, Toast.LENGTH_LONG).show();
+                        signInButton.setVisibility(View.VISIBLE);
+                        signInProgress.setVisibility(View.GONE);
                     }
 
                     @Override
                     public void onNext(Player player) {
+                        signInButton.setVisibility(View.GONE);
+                        signInProgress.setVisibility(View.GONE);
                         Intent intent = new Intent(LoginActivity.this, MapsActivity.class);
                         intent.putExtra(MapsActivity.EXTRA_PLAYER, player);
                         startActivity(intent);
