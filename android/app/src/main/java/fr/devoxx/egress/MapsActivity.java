@@ -129,36 +129,8 @@ public class MapsActivity extends FragmentActivity {
 
     private void setupGeoFire() {
         firebase = new Firebase("https://shining-inferno-9452.firebaseio.com");
-        firebase.authWithOAuthToken("google", player.token, new Firebase.AuthResultHandler() {
-            @Override
-            public void onAuthenticated(AuthData authData) {
-                Timber.d("Authenticated");
-                getPlayerInfos();
-            }
-
-            @Override
-            public void onAuthenticationError(FirebaseError firebaseError) {
-                Timber.d("Authentication error");
-                Toast.makeText(MapsActivity.this, R.string.error, LENGTH_LONG).show();
-            }
-        });
-        firebase.child(".info").child("connected").addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                if (dataSnapshot.getValue() == true) {
-                    statusView.setText(R.string.connected);
-                    statusView.setTextColor(getResources().getColor(R.color.connected));
-                } else {
-                    statusView.setText(R.string.disconnected);
-                    statusView.setTextColor(getResources().getColor(R.color.disconnected));
-                }
-            }
-
-            @Override
-            public void onCancelled(FirebaseError firebaseError) {
-
-            }
-        });
+        firebase.authWithOAuthToken("google", player.token, new AuthenticationEventListener());
+        firebase.child(".info").child("connected").addValueEventListener(new ConnectionStateListener());
         geoFire = new GeoFire(firebase.child("_geofire"));
     }
 
@@ -233,44 +205,13 @@ public class MapsActivity extends FragmentActivity {
         pendingMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_pending);
         lockedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_locked);
         ownedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_owned);
+
         setupCircleHint();
 
         map.moveCamera(CameraUpdateFactory.newLatLngZoom(lastCircleCenter, 13));
 
         geoQuery = geoFire.queryAtLocation(new GeoLocation(lastCircleCenter.latitude, lastCircleCenter.longitude), 1);
-        geoQuery.addGeoQueryEventListener(new GeoQueryEventListener() {
-            @Override
-            public void onKeyEntered(final String key, final GeoLocation location) {
-                Timber.d("On key entered " + location);
-                firebase.child(key).addValueEventListener(stationValueEventListener);
-            }
-
-            @Override
-            public void onKeyExited(String key) {
-                Timber.d("On key exited " + key);
-                firebase.child(key).removeEventListener(stationValueEventListener);
-                Marker markerToRemove = displayedMarkersCache.remove(key);
-                if (markerToRemove != null) {
-                    displayedStationsCache.remove(markerToRemove);
-                    markerToRemove.remove();
-                }
-            }
-
-            @Override
-            public void onKeyMoved(String key, GeoLocation location) {
-                Timber.d("On key moved " + key);
-            }
-
-            @Override
-            public void onGeoQueryReady() {
-                Timber.d("Geo query ready");
-            }
-
-            @Override
-            public void onGeoQueryError(FirebaseError error) {
-                Timber.d("Geo query error " + error);
-            }
-        });
+        geoQuery.addGeoQueryEventListener(new StationGeoQueryListener());
 
         map.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
@@ -417,6 +358,20 @@ public class MapsActivity extends FragmentActivity {
         displayedStationsCache.put(marker, station);
     }
 
+    private class AuthenticationEventListener implements Firebase.AuthResultHandler {
+
+        @Override
+        public void onAuthenticated(AuthData authData) {
+            Timber.d("Authenticated");
+            getPlayerInfos();
+        }
+
+        @Override
+        public void onAuthenticationError(FirebaseError firebaseError) {
+            Timber.d("Authentication error");
+        }
+    }
+
     private class StationValueEventListener implements ValueEventListener {
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
@@ -443,6 +398,17 @@ public class MapsActivity extends FragmentActivity {
         }
     }
 
+    private BitmapDescriptor getMarkerIcon(Station station) {
+        if (pendingCaptures.contains(station.getKey())) {
+            return pendingMarkerIconDescriptor;
+        } else if (station.isFree()) {
+            return freeMarkerIconDescriptor;
+        } else {
+            return player.mail.equalsIgnoreCase(station.getOwnerMail()) ? ownedMarkerIconDescriptor : lockedMarkerIconDescriptor;
+        }
+    }
+
+
     private class PlayerScoreListener implements ValueEventListener {
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
@@ -457,13 +423,55 @@ public class MapsActivity extends FragmentActivity {
         }
     }
 
-    private BitmapDescriptor getMarkerIcon(Station station) {
-        if (pendingCaptures.contains(station.getKey())) {
-            return pendingMarkerIconDescriptor;
-        } else if (station.isFree()) {
-            return freeMarkerIconDescriptor;
-        } else {
-            return player.mail.equalsIgnoreCase(station.getOwnerMail()) ? ownedMarkerIconDescriptor : lockedMarkerIconDescriptor;
+    private class ConnectionStateListener implements ValueEventListener {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            if (dataSnapshot.getValue() == true) {
+                statusView.setText(R.string.connected);
+                statusView.setTextColor(getResources().getColor(R.color.connected));
+            } else {
+                statusView.setText(R.string.disconnected);
+                statusView.setTextColor(getResources().getColor(R.color.disconnected));
+            }
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+
+        }
+    }
+
+    private class StationGeoQueryListener implements GeoQueryEventListener {
+        @Override
+        public void onKeyEntered(final String key, final GeoLocation location) {
+            Timber.d("On key entered " + location);
+            firebase.child(key).addValueEventListener(stationValueEventListener);
+        }
+
+        @Override
+        public void onKeyExited(String key) {
+            Timber.d("On key exited " + key);
+            firebase.child(key).removeEventListener(stationValueEventListener);
+            Marker markerToRemove = displayedMarkersCache.remove(key);
+            if (markerToRemove != null) {
+                displayedStationsCache.remove(markerToRemove);
+                markerToRemove.remove();
+            }
+        }
+
+        @Override
+        public void onKeyMoved(String key, GeoLocation location) {
+            Timber.d("On key moved " + key);
+        }
+
+        @Override
+        public void onGeoQueryReady() {
+            Timber.d("Geo query ready");
+        }
+
+        @Override
+        public void onGeoQueryError(FirebaseError error) {
+            Timber.d("Geo query error " + error);
         }
     }
 }
