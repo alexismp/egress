@@ -9,7 +9,7 @@ public class Functions {
         return new Func2<String, String, Player>() {
             @Override
             public Player call(String token, String name) {
-                return new Player(token, name, mail);
+                return new Player(token, name, mail, 0);
             }
         };
     }

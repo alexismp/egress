@@ -4,20 +4,26 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 public class Player implements Parcelable {
+
+    public static final String FIELD_SCORE = "score";
+
     public final String token;
     public final String name;
     public final String mail;
+    public long score;
 
-    public Player(String token, String name, String mail) {
+    public Player(String token, String name, String mail, long score) {
         this.token = token;
         this.name = name;
         this.mail = mail;
+        this.score = score;
     }
 
     protected Player(Parcel in) {
         token = in.readString();
         name = in.readString();
         mail = in.readString();
+        score = in.readLong();
     }
 
     @Override
@@ -30,6 +36,7 @@ public class Player implements Parcelable {
         dest.writeString(token);
         dest.writeString(name);
         dest.writeString(mail);
+        dest.writeLong(score);
     }
 
     @SuppressWarnings("unused")

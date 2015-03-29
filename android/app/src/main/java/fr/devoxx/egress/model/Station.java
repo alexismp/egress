@@ -40,14 +40,20 @@ public class Station {
     }
 
     public Double getLatitude() {
-        return Double.valueOf((String) dataValues.get(FIELD_LATITUDE));
+        String latitudeStr = (String) dataValues.get(FIELD_LATITUDE);
+        return latitudeStr == null ? null : Double.valueOf(latitudeStr);
     }
 
     public Double getLongitude() {
-        return Double.valueOf((String) dataValues.get(FIELD_LONGITUDE));
+        String longitudeStr = (String) dataValues.get(FIELD_LONGITUDE);
+        return longitudeStr == null ? null : Double.valueOf(longitudeStr);
     }
 
     public boolean isFree() {
         return TextUtils.isEmpty(getOwner());
+    }
+
+    public boolean hasCoordinate() {
+        return getLatitude() != null && getLongitude() != null;
     }
 }

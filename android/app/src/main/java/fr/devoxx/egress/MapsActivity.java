@@ -10,12 +10,15 @@ import android.util.Property;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import com.firebase.client.AuthData;
 import com.firebase.client.DataSnapshot;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
+import com.firebase.client.MutableData;
+import com.firebase.client.Transaction;
 import com.firebase.client.ValueEventListener;
 import com.firebase.geofire.GeoFire;
 import com.firebase.geofire.GeoLocation;
@@ -35,12 +38,15 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.melnykov.fab.FloatingActionButton;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import butterknife.ButterKnife;
 import butterknife.InjectView;
 import butterknife.OnClick;
 import fr.devoxx.egress.internal.LatLngInterpolator;
+import fr.devoxx.egress.internal.Preferences;
 import fr.devoxx.egress.model.Player;
 import fr.devoxx.egress.model.Station;
 import icepick.Icepick;
@@ -57,6 +63,9 @@ public class MapsActivity extends FragmentActivity {
     private static final LatLngInterpolator latLngInterpolator = new LatLngInterpolator.LinearFixed();
 
     @InjectView(R.id.add_action) FloatingActionButton addActionButton;
+    @InjectView(R.id.welcome) TextView welcomeView;
+    @InjectView(R.id.status) TextView statusView;
+    @InjectView(R.id.total_captures) TextView totalCapturesView;
 
     private GoogleMap map; // Might be null if Google Play services APK is not available.
 
@@ -74,6 +83,7 @@ public class MapsActivity extends FragmentActivity {
     private Map<Marker, Station> displayedStationsCache = new HashMap<>();
 
     private BitmapDescriptor freeMarkerIconDescriptor;
+    private BitmapDescriptor pendingMarkerIconDescriptor;
     private BitmapDescriptor lockedMarkerIconDescriptor;
     private BitmapDescriptor ownedMarkerIconDescriptor;
 
@@ -86,15 +96,19 @@ public class MapsActivity extends FragmentActivity {
     private Player player;
     private SupportMapFragment mapFragment;
 
+    private Set<String> pendingCaptures = new HashSet<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.maps_activity);
+        ButterKnife.inject(this);
         mapFragment = SupportMapFragment.newInstance(new GoogleMapOptions().mapType(GoogleMap.MAP_TYPE_TERRAIN));
         getSupportFragmentManager().beginTransaction().
                 replace(R.id.map, mapFragment).
                 commit();
-        ButterKnife.inject(this);
+        player = getIntent().getParcelableExtra(EXTRA_PLAYER);
+        welcomeView.setText(getString(R.string.welcome, player.name));
         Icepick.restoreInstanceState(this, savedInstanceState);
         setupActionButton();
         setupGeoFire();
@@ -114,12 +128,12 @@ public class MapsActivity extends FragmentActivity {
     }
 
     private void setupGeoFire() {
-        player = getIntent().getParcelableExtra(EXTRA_PLAYER);
         firebase = new Firebase("https://shining-inferno-9452.firebaseio.com");
         firebase.authWithOAuthToken("google", player.token, new Firebase.AuthResultHandler() {
             @Override
             public void onAuthenticated(AuthData authData) {
                 Timber.d("Authenticated");
+                getPlayerInfos();
             }
 
             @Override
@@ -128,7 +142,44 @@ public class MapsActivity extends FragmentActivity {
                 Toast.makeText(MapsActivity.this, R.string.error, LENGTH_LONG).show();
             }
         });
+        firebase.child(".info").child("connected").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                if (dataSnapshot.getValue() == true) {
+                    statusView.setText(R.string.connected);
+                    statusView.setTextColor(getResources().getColor(R.color.connected));
+                } else {
+                    statusView.setText(R.string.disconnected);
+                    statusView.setTextColor(getResources().getColor(R.color.disconnected));
+                }
+            }
+
+            @Override
+            public void onCancelled(FirebaseError firebaseError) {
+
+            }
+        });
         geoFire = new GeoFire(firebase.child("_geofire"));
+    }
+
+    private void getPlayerInfos() {
+        final MapsActivity context = MapsActivity.this;
+        if (!Preferences.hasPlayerId(context)) {
+            Firebase pushRef = firebase.child("players").push();
+            pushRef.setValue(player, new Firebase.CompletionListener() {
+                @Override
+                public void onComplete(FirebaseError firebaseError, Firebase firebase) {
+                    if (firebaseError == null) {
+                        Preferences.setPlayerId(context, firebase.getKey());
+                        firebase.addValueEventListener(new PlayerScoreListener());
+                    }
+                }
+            });
+        } else {
+            firebase.child("players").
+                    child(Preferences.getPlayerId(context)).
+                    addValueEventListener(new PlayerScoreListener());
+        }
     }
 
     @Override
@@ -179,6 +230,7 @@ public class MapsActivity extends FragmentActivity {
         map.getUiSettings().setMapToolbarEnabled(false);
 
         freeMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station);
+        pendingMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_pending);
         lockedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_locked);
         ownedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_owned);
         setupCircleHint();
@@ -317,28 +369,61 @@ public class MapsActivity extends FragmentActivity {
 
     @OnClick(R.id.add_action)
     public void onAddActionClicked() {
-        Station station = displayedStationsCache.get(selectedMarker);
-        Map<String, Object> map = new HashMap<>();
-        map.put(Station.FIELD_OWNER, player.name);
-        map.put(Station.FIELD_OWNER_MAIL, player.mail);
-        map.put(Station.FIELD_WHEN, System.currentTimeMillis());
-        firebase.child(station.getKey()).updateChildren(map, new Firebase.CompletionListener() {
+        final Station station = displayedStationsCache.get(selectedMarker);
+        pendingCaptures.add(station.getKey());
+        firebase.child(station.getKey()).runTransaction(new Transaction.Handler() {
             @Override
-            public void onComplete(FirebaseError firebaseError, Firebase firebase) {
+            public Transaction.Result doTransaction(MutableData mutableData) {
+                mutableData.child(Station.FIELD_OWNER).setValue(player.name);
+                mutableData.child(Station.FIELD_OWNER_MAIL).setValue(player.mail);
+                mutableData.child(Station.FIELD_WHEN).setValue(System.currentTimeMillis());
+                return Transaction.success(mutableData);
+            }
+
+            @Override
+            public void onComplete(FirebaseError firebaseError, boolean committed, DataSnapshot dataSnapshot) {
+                pendingCaptures.remove(station.getKey());
                 if (firebaseError != null) {
                     Toast.makeText(MapsActivity.this, R.string.error, LENGTH_LONG).show();
                 } else {
+                    Station station = new Station(dataSnapshot);
+                    if (player.mail.equals(station.getOwnerMail())) {
+                        firebase.child("players").
+                                child(Preferences.getPlayerId(MapsActivity.this)).
+                                child(Player.FIELD_SCORE).setValue(++player.score);
+                    }
+                    handleStationUpdated(dataSnapshot);
                     addActionButton.animate().translationY(hideActionButtonOffset).start();
                 }
             }
         });
     }
 
+    private void handleStationUpdated(DataSnapshot dataSnapshot) {
+        Station station = new Station(dataSnapshot);
+        if (!station.hasCoordinate()) {
+            return;
+        }
+        Marker marker = displayedMarkersCache.get(station.getKey());
+        if (marker == null) {
+            marker = map.addMarker(new MarkerOptions()
+                    .position(new LatLng(station.getLatitude(), station.getLongitude()))
+                    .visible(!circleHasMoved)
+                    .title(station.getName()));
+        }
+        marker.setIcon(getMarkerIcon(station));
+
+        displayedMarkersCache.put(dataSnapshot.getKey(), marker);
+        displayedStationsCache.put(marker, station);
+    }
+
     private class StationValueEventListener implements ValueEventListener {
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
             Station station = new Station(dataSnapshot);
-
+            if (!station.hasCoordinate()) {
+                return;
+            }
             Marker marker = displayedMarkersCache.get(station.getKey());
             if (marker == null) {
                 marker = map.addMarker(new MarkerOptions()
@@ -358,10 +443,27 @@ public class MapsActivity extends FragmentActivity {
         }
     }
 
-    private BitmapDescriptor getMarkerIcon(Station station) {
-        if (station.isFree()) {
-            return freeMarkerIconDescriptor;
+    private class PlayerScoreListener implements ValueEventListener {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            Map<String, Object> mapPlayerInfos = (Map<String, Object>) dataSnapshot.getValue();
+            player.score = (long) mapPlayerInfos.get(Player.FIELD_SCORE);
+            totalCapturesView.setText(getString(R.string.total_captures, mapPlayerInfos.get(Player.FIELD_SCORE)));
         }
-        return player.mail.equalsIgnoreCase(station.getOwnerMail()) ? ownedMarkerIconDescriptor : lockedMarkerIconDescriptor;
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+
+        }
+    }
+
+    private BitmapDescriptor getMarkerIcon(Station station) {
+        if (pendingCaptures.contains(station.getKey())) {
+            return pendingMarkerIconDescriptor;
+        } else if (station.isFree()) {
+            return freeMarkerIconDescriptor;
+        } else {
+            return player.mail.equalsIgnoreCase(station.getOwnerMail()) ? ownedMarkerIconDescriptor : lockedMarkerIconDescriptor;
+        }
     }
 }
