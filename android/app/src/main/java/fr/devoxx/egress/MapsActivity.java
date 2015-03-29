@@ -277,7 +277,7 @@ public class MapsActivity extends FragmentActivity {
             @Override
             public void onAnimationStart(Animator animation) {
                 for (Marker marker : displayedMarkersCache.values()) {
-                    marker.setVisible(true);
+                    marker.setVisible(false);
                 }
                 circle.setFillColor(Color.TRANSPARENT);
             }
