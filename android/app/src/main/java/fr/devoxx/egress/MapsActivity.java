@@ -192,7 +192,11 @@ public class MapsActivity extends FragmentActivity {
             public void onKeyExited(String key) {
                 Timber.d("On key exited " + key);
                 firebase.child(key).removeEventListener(stationValueEventListener);
-                displayedMarkersCache.remove(key).remove();
+                Marker markerToRemove = displayedMarkersCache.remove(key);
+                if(markerToRemove != null){
+                    displayedStationsCache.remove(markerToRemove);
+                    markerToRemove.remove();
+                }
             }
 
             @Override
