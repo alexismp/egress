@@ -23,6 +23,7 @@ import com.firebase.geofire.GeoQuery;
 import com.firebase.geofire.GeoQueryEventListener;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
+import com.google.android.gms.maps.GoogleMapOptions;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
@@ -83,11 +84,16 @@ public class MapsActivity extends FragmentActivity {
     private StationValueEventListener stationValueEventListener = new StationValueEventListener();
 
     private Player player;
+    private SupportMapFragment mapFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.maps_activity);
+        mapFragment = SupportMapFragment.newInstance(new GoogleMapOptions().mapType(GoogleMap.MAP_TYPE_TERRAIN));
+        getSupportFragmentManager().beginTransaction().
+                replace(R.id.map, mapFragment).
+                commit();
         ButterKnife.inject(this);
         Icepick.restoreInstanceState(this, savedInstanceState);
         setupActionButton();
@@ -151,8 +157,7 @@ public class MapsActivity extends FragmentActivity {
         // Do a null check to confirm that we have not already instantiated the map.
         if (map == null) {
             // Try to obtain the map from the SupportMapFragment.
-            map = ((SupportMapFragment) getSupportFragmentManager().findFragmentById(R.id.map))
-                    .getMap();
+            map = mapFragment.getMap();
             // Check if we were successful in obtaining the map.
             if (map != null) {
                 setUpMap();
@@ -193,7 +198,7 @@ public class MapsActivity extends FragmentActivity {
                 Timber.d("On key exited " + key);
                 firebase.child(key).removeEventListener(stationValueEventListener);
                 Marker markerToRemove = displayedMarkersCache.remove(key);
-                if(markerToRemove != null){
+                if (markerToRemove != null) {
                     displayedStationsCache.remove(markerToRemove);
                     markerToRemove.remove();
                 }
