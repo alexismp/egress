@@ -109,9 +109,11 @@ public class MapsActivity extends FragmentActivity {
                 commit();
         player = getIntent().getParcelableExtra(EXTRA_PLAYER);
         welcomeView.setText(getString(R.string.welcome, player.name));
+        totalCapturesView.setText(getString(R.string.total_captures, "--"));
         Icepick.restoreInstanceState(this, savedInstanceState);
         setupActionButton();
         setupGeoFire();
+        setupPlayerInfos();
         setUpMapIfNeeded();
     }
 
@@ -134,7 +136,7 @@ public class MapsActivity extends FragmentActivity {
         geoFire = new GeoFire(firebase.child("_geofire"));
     }
 
-    private void getPlayerInfos() {
+    private void setupPlayerInfos() {
         final MapsActivity context = MapsActivity.this;
         if (!Preferences.hasPlayerId(context)) {
             Firebase pushRef = firebase.child("players").push();
@@ -158,7 +160,6 @@ public class MapsActivity extends FragmentActivity {
     protected void onResume() {
         super.onResume();
         setUpMapIfNeeded();
-
     }
 
     /**
@@ -363,7 +364,6 @@ public class MapsActivity extends FragmentActivity {
         @Override
         public void onAuthenticated(AuthData authData) {
             Timber.d("Authenticated");
-            getPlayerInfos();
         }
 
         @Override
