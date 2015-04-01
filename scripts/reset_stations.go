@@ -8,13 +8,13 @@ import (
 )
 
 type Station struct {
-	Code string `json:"CODE_LIGNE"`
+	Code        string `json:"CODE_LIGNE"`
 	Name        string `json:"NOM"`
-	Latitude   string `json:"LATITUDE"`
-	Longitude  string `json:"LONGITUDE"`
-	Owner      string `json:"owner"`
-	OwnerMail  string `json:"OwnerMail"`
-	When       int64  `json:"when"`
+	Latitude    string `json:"LATITUDE"`
+	Longitude   string `json:"LONGITUDE"`
+	Owner       string `json:"owner"`
+	OwnerMail   string `json:"OwnerMail"`
+	When        int64  `json:"when"`
 }
 
 func main() {
@@ -23,7 +23,7 @@ func main() {
 
 	for i := 1; i < 6441; i++ {
 		station := &Station{};
-		stationChild := client.Child(fmt.Sprintf("%v", i), nil, station)
+		stationChild := client.Child("stations", nil, nil).Child(fmt.Sprintf("%v", i), nil, station)
 		if (station.Owner != "") {
 			if (time.Now().UnixNano()/int64(time.Millisecond)-station.When > 5*3600*1000) {
 				log.Printf("Free station : %v", i)
