@@ -343,7 +343,7 @@ public class MapsActivity extends FragmentActivity {
                         firebase.child("players").
                                 child(Preferences.getPlayerId(MapsActivity.this)).
                                 child(Player.FIELD_SCORE).setValue(++player.score);
-                        eventLogger.logStationCaptured(station.getName());
+                        eventLogger.logStationCapturedBy(player.name);
                     }
                     handleStationUpdated(dataSnapshot);
                     addActionButton.animate().translationY(hideActionButtonOffset).start();

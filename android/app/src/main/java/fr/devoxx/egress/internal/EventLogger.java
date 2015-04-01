@@ -35,7 +35,7 @@ public class EventLogger {
         httpClient.newCall(request).enqueue(new EmptyResponseCallback());
     }
 
-    public void logStationCaptured(String stationName) {
+    public void logStationCapturedBy(String stationName) {
         Timber.d("Sending request %s", LOG_NEW_STATION_CAPTURED_URL);
         Request request = new Request.Builder().
                 url(String.format(LOG_NEW_STATION_CAPTURED_URL, Uri.encode(stationName)))
