@@ -130,7 +130,7 @@ public class MapsActivity extends FragmentActivity {
     }
 
     private void setupGeoFire() {
-        firebase = new Firebase("https://shining-inferno-9452.firebaseio.com");
+        firebase = new Firebase(BuildConfig.FIREBASE_URL);
         firebase.authWithOAuthToken("google", player.token, new AuthenticationEventListener());
         firebase.child(".info").child("connected").addValueEventListener(new ConnectionStateListener());
         geoFire = new GeoFire(firebase.child("_geofire"));
@@ -313,7 +313,7 @@ public class MapsActivity extends FragmentActivity {
     public void onAddActionClicked() {
         final Station station = displayedStationsCache.get(selectedMarker);
         pendingCaptures.add(station.getKey());
-        firebase.child(station.getKey()).runTransaction(new Transaction.Handler() {
+        firebase.child("stations").child(station.getKey()).runTransaction(new Transaction.Handler() {
             @Override
             public Transaction.Result doTransaction(MutableData mutableData) {
                 mutableData.child(Station.FIELD_OWNER).setValue(player.name);
@@ -445,13 +445,13 @@ public class MapsActivity extends FragmentActivity {
         @Override
         public void onKeyEntered(final String key, final GeoLocation location) {
             Timber.d("On key entered " + location);
-            firebase.child(key).addValueEventListener(stationValueEventListener);
+            firebase.child("stations").child(key).addValueEventListener(stationValueEventListener);
         }
 
         @Override
         public void onKeyExited(String key) {
             Timber.d("On key exited " + key);
-            firebase.child(key).removeEventListener(stationValueEventListener);
+            firebase.child("stations").child(key).removeEventListener(stationValueEventListener);
             Marker markerToRemove = displayedMarkersCache.remove(key);
             if (markerToRemove != null) {
                 displayedStationsCache.remove(markerToRemove);

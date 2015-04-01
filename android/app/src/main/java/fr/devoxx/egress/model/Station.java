@@ -8,9 +8,9 @@ import java.util.Map;
 
 public class Station {
 
-    public static final String FIELD_NAME = "NOM";
-    public static final String FIELD_LATITUDE = "LATITUDE";
-    public static final String FIELD_LONGITUDE = "LONGITUDE";
+    public static final String FIELD_NAME = "name";
+    public static final String FIELD_LATITUDE = "latitude";
+    public static final String FIELD_LONGITUDE = "longitude";
     public static final String FIELD_OWNER = "owner";
     public static final String FIELD_OWNER_MAIL = "ownerMail";
     public static final String FIELD_WHEN = "when";
@@ -40,13 +40,11 @@ public class Station {
     }
 
     public Double getLatitude() {
-        String latitudeStr = (String) dataValues.get(FIELD_LATITUDE);
-        return latitudeStr == null ? null : Double.valueOf(latitudeStr);
+        return (Double) dataValues.get(FIELD_LATITUDE);
     }
 
     public Double getLongitude() {
-        String longitudeStr = (String) dataValues.get(FIELD_LONGITUDE);
-        return longitudeStr == null ? null : Double.valueOf(longitudeStr);
+        return (Double) dataValues.get(FIELD_LONGITUDE);
     }
 
     public boolean isFree() {
