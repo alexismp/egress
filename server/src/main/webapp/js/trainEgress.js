@@ -77,7 +77,7 @@ geoQuery_stations.on("key_entered", function (stationId, stationLocation) {
     stationsInQuery[stationId] = true;
 
     // Look up the train station's data in the appropriate Firebase reference
-    trainStationsFirebaseRef.child(stationId).once("value", function (dataSnapshot) {
+    trainStationsFirebaseRef.child("stations").child(stationId).once("value", function (dataSnapshot) {
         // Get the train station data from Firebase
         station = dataSnapshot.val();
 

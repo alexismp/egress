@@ -63,8 +63,8 @@ function createStationMarker(station) {
     }
     // have fun with https://developers.google.com/chart/image/docs/gallery/dynamic_icons
     var marker = new google.maps.Marker({
-        icon: "https://chart.googleapis.com/chart?chst=d_bubble_icon_text_small&chld=flag|bbT|" + encodeURI(station.NOM) + "|" + bgcolor + "|" + fgcolor,
-        position: new google.maps.LatLng(station.LATITUDE, station.LONGITUDE),
+        icon: "https://chart.googleapis.com/chart?chst=d_bubble_icon_text_small&chld=flag|bbT|" + encodeURI(station.name) + "|" + bgcolor + "|" + fgcolor,
+        position: new google.maps.LatLng(station.latitude, station.longitude),
         optimized: true,
         map: map
     });
