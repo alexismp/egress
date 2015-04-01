@@ -45,6 +45,7 @@ import java.util.Set;
 import butterknife.ButterKnife;
 import butterknife.InjectView;
 import butterknife.OnClick;
+import fr.devoxx.egress.internal.EventLogger;
 import fr.devoxx.egress.internal.LatLngInterpolator;
 import fr.devoxx.egress.internal.Preferences;
 import fr.devoxx.egress.model.Player;
@@ -98,11 +99,25 @@ public class MapsActivity extends FragmentActivity {
 
     private Set<String> pendingCaptures = new HashSet<>();
 
+    private EventLogger eventLogger = new EventLogger();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.maps_activity);
+        init(savedInstanceState);
+        setupActionButton();
+        setupGeoFire();
+        setupPlayerInfos();
+        setUpMapIfNeeded();
+        if (savedInstanceState == null) {
+            eventLogger.logNewPlayer(player.name);
+        }
+    }
+
+    private void init(Bundle savedInstanceState) {
         ButterKnife.inject(this);
+        Icepick.restoreInstanceState(this, savedInstanceState);
         mapFragment = SupportMapFragment.newInstance(new GoogleMapOptions().mapType(GoogleMap.MAP_TYPE_TERRAIN));
         getSupportFragmentManager().beginTransaction().
                 replace(R.id.map, mapFragment).
@@ -110,17 +125,6 @@ public class MapsActivity extends FragmentActivity {
         player = getIntent().getParcelableExtra(EXTRA_PLAYER);
         welcomeView.setText(getString(R.string.welcome, player.name));
         totalCapturesView.setText(getString(R.string.total_captures, "--"));
-        Icepick.restoreInstanceState(this, savedInstanceState);
-        setupActionButton();
-        setupGeoFire();
-        setupPlayerInfos();
-        setUpMapIfNeeded();
-    }
-
-    @Override
-    public void onSaveInstanceState(Bundle outState) {
-        super.onSaveInstanceState(outState);
-        Icepick.saveInstanceState(this, outState);
     }
 
 
@@ -160,6 +164,12 @@ public class MapsActivity extends FragmentActivity {
     protected void onResume() {
         super.onResume();
         setUpMapIfNeeded();
+    }
+
+    @Override
+    public void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        Icepick.saveInstanceState(this, outState);
     }
 
     /**
@@ -333,6 +343,7 @@ public class MapsActivity extends FragmentActivity {
                         firebase.child("players").
                                 child(Preferences.getPlayerId(MapsActivity.this)).
                                 child(Player.FIELD_SCORE).setValue(++player.score);
+                        eventLogger.logStationCaptured(station.getName());
                     }
                     handleStationUpdated(dataSnapshot);
                     addActionButton.animate().translationY(hideActionButtonOffset).start();
@@ -379,6 +390,7 @@ public class MapsActivity extends FragmentActivity {
             if (!station.hasCoordinate()) {
                 return;
             }
+            eventLogger.logStationDiscovered(station.getName());
             Marker marker = displayedMarkersCache.get(station.getKey());
             if (marker == null) {
                 marker = map.addMarker(new MarkerOptions()

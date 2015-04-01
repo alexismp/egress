@@ -29,17 +29,22 @@ android {
     }
     buildTypes {
         debug {
-            buildConfigField 'String', 'FIREBASE_URL', '"https://shining-inferno-9452.firebaseio.com"'
-
             testCoverageEnabled false
         }
         release {
-            buildConfigField 'String', 'FIREBASE_URL', '"https://shining-inferno-9452.firebaseio.com"'
-
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
 
             signingConfig signingConfigs.release
+        }
+    }
+
+    productFlavors {
+        prod {
+            buildConfigField 'String', 'FIREBASE_URL', '"https://shining-inferno-9452.firebaseio.com"'
+            buildConfigField 'String', 'LOG_STATION_DISCOVERED_URL', '"https://egress-stations.appspot.com/log?stationDiscovered=%s"'
+            buildConfigField 'String', 'LOG_NEW_STATION_CAPTURED_URL', '"https://egress-stations.appspot.com/log?stationDiscovered=%s"'
+            buildConfigField 'String', 'LOG_NEW_PLAYER_URL', '"https://egress-stations.appspot.com/log?newPlayer=%s"'
         }
     }
 }
@@ -53,6 +58,7 @@ dependencies {
     compile 'com.jakewharton.timber:timber:2.7.1'
     compile 'com.jakewharton:butterknife:6.1.0'
     compile 'com.melnykov:floatingactionbutton:1.2.0'
+    compile 'com.squareup.okhttp:okhttp:2.3.0'
     compile 'io.reactivex:rxandroid:+'
     compile 'com.firebase:firebase-client-android:2.2.0+'
     compile 'com.firebase:geofire:1.1.+'
