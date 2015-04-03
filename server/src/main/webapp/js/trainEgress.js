@@ -3,7 +3,8 @@ var map;
 
 // Set the center as Firebase HQ
 var locations = {
-    "Grenoble": [45.1841656, 5.7155425]
+    "Grenoble": [45.1841656, 5.7155425],
+    "Paris": [48.8534100, 2.3488000]
 };
 var center_stations = locations["Grenoble"];
 
@@ -33,31 +34,8 @@ function updateUserUI(name) {
     legend.appendChild(div);    
 }
 
-// Auth with an email/password combination
-//trainStationsFirebaseRef.authWithPassword({
-//  email    : 'user@email.com',
-//  password : 'changeme'
-//}, authHandler);
-
 trainStationsFirebaseRef.authWithOAuthPopup("google", authHandler);
 //trainStationsFirebaseRef.authWithOAuthRedirect("google", authHandler);
-
-//trainStationsFirebaseRef.onAuth(function(authData) {
-//    console.log(authData);
-//  if (authData !== null) {
-//    console.log("Authenticated successfully with payload:", authData);
-//    console.log("Name: ", authData.google.displayName );
-//  } else {
-//    // Try to authenticate with Google via OAuth redirection
-//    console.log("before auth with redirect...")
-//    trainStationsFirebaseRef.authWithOAuthRedirect("google", function(error, authData) {
-//        console.log("kdjfhsdkjfhksjdfhjkshdfj> ", arguments)
-//      if (error) {
-//        console.log("Login Failed!", error);
-//      }
-//    });
-//  }
-//});
 
 /*************/
 /*  GEOQUERY */
