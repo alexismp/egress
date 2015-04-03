@@ -26,7 +26,6 @@ import java.util.logging.Logger;
 public class JavaResetter {
 
     Firebase firebase;
-    Map<String, Object> emptyOwner = new HashMap<>();
     private static final String configFile = "config.properties";
 
     public static void main(String[] args) {
@@ -54,8 +53,6 @@ public class JavaResetter {
 
     private JavaResetter(String username, String password) {
         firebase = new Firebase("https://shining-inferno-9452.firebaseio.com/stations");
-        emptyOwner.put("owner", "");
-
         System.out.println("About to reset all stations.");
         try {
             resetData(username, password);
