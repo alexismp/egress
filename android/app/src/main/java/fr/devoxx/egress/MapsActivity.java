@@ -437,7 +437,7 @@ public class MapsActivity extends FragmentActivity {
     private class ConnectionStateListener implements ValueEventListener {
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
-            if (dataSnapshot.getValue() == true) {
+            if (Boolean.TRUE.equals(dataSnapshot.getValue())) {
                 statusView.setText(R.string.connected);
                 statusView.setTextColor(getResources().getColor(R.color.connected));
             } else {
