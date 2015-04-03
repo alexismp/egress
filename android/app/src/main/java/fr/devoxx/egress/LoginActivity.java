@@ -22,6 +22,7 @@ import rx.Subscriber;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
 
+import static android.widget.Toast.LENGTH_LONG;
 import static rx.android.app.AppObservable.bindActivity;
 
 
@@ -94,6 +95,10 @@ public class LoginActivity extends Activity {
         signInClicked = true;
         if (connectionResult != null) {
             resolveSignInError();
+        } else if (!googleApiClient.isConnected()) {
+            signInButton.setVisibility(View.GONE);
+            signInProgress.setVisibility(View.VISIBLE);
+            googleApiClient.connect();
         } else {
             goToMapsScreen();
         }
@@ -110,6 +115,10 @@ public class LoginActivity extends Activity {
                 intentInProgress = false;
                 googleApiClient.connect();
             }
+        } else {
+            signInButton.setVisibility(View.GONE);
+            signInProgress.setVisibility(View.VISIBLE);
+            Toast.makeText(this, R.string.error, LENGTH_LONG).show();
         }
     }
 
@@ -143,7 +152,7 @@ public class LoginActivity extends Activity {
 
                     @Override
                     public void onError(Throwable e) {
-                        Toast.makeText(LoginActivity.this, R.string.error, Toast.LENGTH_LONG).show();
+                        Toast.makeText(LoginActivity.this, R.string.error, LENGTH_LONG).show();
                         signInButton.setVisibility(View.VISIBLE);
                         signInProgress.setVisibility(View.GONE);
                     }
