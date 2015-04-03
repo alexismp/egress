@@ -343,7 +343,7 @@ public class MapsActivity extends FragmentActivity {
                         firebase.child("players").
                                 child(Preferences.getPlayerId(MapsActivity.this)).
                                 child(Player.FIELD_SCORE).setValue(++player.score);
-                        eventLogger.logStationCapturedBy(player.name);
+                        eventLogger.logStationCapturedBy(station.getKey(), player.name);
                     }
                     handleStationUpdated(dataSnapshot);
                     addActionButton.animate().translationY(hideActionButtonOffset).start();
@@ -390,7 +390,6 @@ public class MapsActivity extends FragmentActivity {
             if (!station.hasCoordinate()) {
                 return;
             }
-            eventLogger.logStationDiscovered(station.getName());
             Marker marker = displayedMarkersCache.get(station.getKey());
             if (marker == null) {
                 marker = map.addMarker(new MarkerOptions()
@@ -458,6 +457,7 @@ public class MapsActivity extends FragmentActivity {
         public void onKeyEntered(final String key, final GeoLocation location) {
             Timber.d("On key entered " + location);
             firebase.child("stations").child(key).addValueEventListener(stationValueEventListener);
+            eventLogger.logStationDiscovered(key);
         }
 
         @Override

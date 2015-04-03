@@ -17,7 +17,7 @@ import static fr.devoxx.egress.BuildConfig.LOG_STATION_DISCOVERED_URL;
 
 public class EventLogger {
 
-    private OkHttpClient httpClient = new OkHttpClient();;
+    private OkHttpClient httpClient = new OkHttpClient();
 
     public void logNewPlayer(String playerName) {
         Timber.d("Sending request %s", LOG_NEW_PLAYER_URL);
@@ -27,18 +27,18 @@ public class EventLogger {
         httpClient.newCall(request).enqueue(new EmptyResponseCallback());
     }
 
-    public void logStationDiscovered(String stationName) {
+    public void logStationDiscovered(String stationKey) {
         Timber.d("Sending request %s", LOG_STATION_DISCOVERED_URL);
         Request request = new Request.Builder().
-                url(String.format(LOG_STATION_DISCOVERED_URL, Uri.encode(stationName)))
+                url(String.format(LOG_STATION_DISCOVERED_URL, stationKey))
                 .build();
         httpClient.newCall(request).enqueue(new EmptyResponseCallback());
     }
 
-    public void logStationCapturedBy(String stationName) {
+    public void logStationCapturedBy(String stationKey, String playerName) {
         Timber.d("Sending request %s", LOG_NEW_STATION_CAPTURED_URL);
         Request request = new Request.Builder().
-                url(String.format(LOG_NEW_STATION_CAPTURED_URL, Uri.encode(stationName)))
+                url(String.format(LOG_NEW_STATION_CAPTURED_URL, stationKey, playerName))
                 .build();
         httpClient.newCall(request).enqueue(new EmptyResponseCallback());
     }

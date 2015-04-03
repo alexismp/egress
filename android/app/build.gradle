@@ -43,7 +43,7 @@ android {
         prod {
             buildConfigField 'String', 'FIREBASE_URL', '"https://shining-inferno-9452.firebaseio.com"'
             buildConfigField 'String', 'LOG_STATION_DISCOVERED_URL', '"https://egress-stations.appspot.com/log?stationDiscovered=%s"'
-            buildConfigField 'String', 'LOG_NEW_STATION_CAPTURED_URL', '"https://egress-stations.appspot.com/log?newStationCapturedBy=%s"'
+            buildConfigField 'String', 'LOG_NEW_STATION_CAPTURED_URL', '"https://egress-stations.appspot.com/log?stationCaptured=%s&capturedBy=%s"'
             buildConfigField 'String', 'LOG_NEW_PLAYER_URL', '"https://egress-stations.appspot.com/log?newPlayer=%s"'
         }
     }
