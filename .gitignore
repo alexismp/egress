@@ -2,6 +2,7 @@ hotspot.log
 *.iml
 *.ipr
 *.iws
+*.apk
 target/
 classes/
 /var
@@ -17,3 +18,8 @@ temp-testng-customsuite.xml
 test-output
 .externalToolBuilders
 *~
+
+android/gradle/local.properties
+
+java-resetter/nb-configuration.xml
+server/src/main/webapp/WEB-INF/client.properties
