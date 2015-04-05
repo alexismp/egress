@@ -55,6 +55,7 @@ import icepick.Icicle;
 import timber.log.Timber;
 
 import static android.widget.Toast.LENGTH_LONG;
+import static fr.devoxx.egress.internal.Functions.distance;
 
 public class MapsActivity extends FragmentActivity {
 
@@ -62,6 +63,7 @@ public class MapsActivity extends FragmentActivity {
 
     private static final LatLng PARIS_GEO_POSITION = new LatLng(48.8534100, 2.3488000);
     private static final LatLngInterpolator latLngInterpolator = new LatLngInterpolator.LinearFixed();
+    private static final int CIRCLE_HINT_RADIUS = 1000;
 
     @InjectView(R.id.add_action) FloatingActionButton addActionButton;
     @InjectView(R.id.welcome) TextView welcomeView;
@@ -227,12 +229,14 @@ public class MapsActivity extends FragmentActivity {
         map.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(LatLng latLng) {
-                selectedMarker = null;
-                lastCircleCenter = latLng;
-                circleHasMoved = true;
-                animateCircle(circle, latLng, latLngInterpolator);
-                geoQuery.setCenter(new GeoLocation(latLng.latitude, latLng.longitude));
-                addActionButton.animate().translationY(hideActionButtonOffset).start();
+                if (distance(latLng, lastCircleCenter) > CIRCLE_HINT_RADIUS) {
+                    selectedMarker = null;
+                    lastCircleCenter = latLng;
+                    circleHasMoved = true;
+                    animateCircle(circle, latLng, latLngInterpolator);
+                    geoQuery.setCenter(new GeoLocation(latLng.latitude, latLng.longitude));
+                    addActionButton.animate().translationY(hideActionButtonOffset).start();
+                }
             }
         });
         map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
@@ -268,7 +272,7 @@ public class MapsActivity extends FragmentActivity {
                 .center(lastCircleCenter)
                 .fillColor(circleFillColor)
                 .strokeColor(getResources().getColor(R.color.circle_color))
-                .radius(1000);
+                .radius(CIRCLE_HINT_RADIUS);
         circle = map.addCircle(circleOptions);
     }
 
