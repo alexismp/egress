@@ -31,7 +31,8 @@ function updateUserUI(name) {
     var legend = document.getElementById('userlegend');
     var div = document.createElement('div');
     div.innerHTML = "User: " + name;
-    legend.appendChild(div);    
+    // TODO: add score and possibly online/offline
+    legend.appendChild(div);
 }
 
 trainStationsFirebaseRef.authWithOAuthPopup("google", authHandler);
