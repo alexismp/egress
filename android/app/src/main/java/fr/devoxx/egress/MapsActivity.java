@@ -108,9 +108,9 @@ public class MapsActivity extends FragmentActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.maps_activity);
         init(savedInstanceState);
-        setupActionButton();
-        setupGeoFire();
-        setupPlayerInfos();
+        setUpActionButton();
+        setUpGeoFire();
+        setUpPlayerInfos();
         setUpMapIfNeeded();
         if (savedInstanceState == null) {
             eventLogger.logNewPlayer(player.name);
@@ -130,31 +130,25 @@ public class MapsActivity extends FragmentActivity {
     }
 
 
-    private void setupActionButton() {
+    private void setUpActionButton() {
         hideActionButtonOffset = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 100, getResources().getDisplayMetrics());
         addActionButton.setTranslationY(hideActionButtonOffset);
     }
 
-    private void setupGeoFire() {
+    private void setUpGeoFire() {
         firebase = new Firebase(BuildConfig.FIREBASE_URL);
         firebase.authWithOAuthToken("google", player.token, new AuthenticationEventListener());
         firebase.child(".info").child("connected").addValueEventListener(new ConnectionStateListener());
         geoFire = new GeoFire(firebase.child("_geofire"));
     }
 
-    private void setupPlayerInfos() {
+    private void setUpPlayerInfos() {
         final MapsActivity context = MapsActivity.this;
         if (!Preferences.hasPlayerId(context)) {
-            Firebase pushRef = firebase.child("players").push();
-            pushRef.setValue(player, new Firebase.CompletionListener() {
-                @Override
-                public void onComplete(FirebaseError firebaseError, Firebase firebase) {
-                    if (firebaseError == null) {
-                        Preferences.setPlayerId(context, firebase.getKey());
-                        firebase.addValueEventListener(new PlayerScoreListener());
-                    }
-                }
-            });
+            firebase.child("players").orderByChild("mail").
+                    startAt(player.mail).
+                    endAt(player.mail).
+                    addListenerForSingleValueEvent(new GetPlayerInfosListener());
         } else {
             firebase.child("players").
                     child(Preferences.getPlayerId(context)).
@@ -423,6 +417,40 @@ public class MapsActivity extends FragmentActivity {
         }
     }
 
+    private class GetPlayerInfosListener implements ValueEventListener {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            if (dataSnapshot.getValue() == null) {
+                createPlayer();
+            } else {
+                DataSnapshot firstChild = dataSnapshot.getChildren().iterator().next();
+                Map<String, Object> mapPlayerInfos = (Map<String, Object>) firstChild.getValue();
+                Preferences.setPlayerId(MapsActivity.this, firstChild.getKey());
+                player.score = (long) mapPlayerInfos.get(Player.FIELD_SCORE);
+                totalCapturesView.setText(getString(R.string.total_captures, mapPlayerInfos.get(Player.FIELD_SCORE)));
+            }
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+            Timber.d(firebaseError.getMessage());
+        }
+    }
+
+    private void createPlayer() {
+        Firebase pushRef = firebase.child("players").push();
+        pushRef.setValue(player, new Firebase.CompletionListener() {
+            @Override
+            public void onComplete(FirebaseError firebaseError, Firebase firebase) {
+                if (firebaseError == null) {
+                    Preferences.setPlayerId(MapsActivity.this, firebase.getKey());
+                    firebase.addValueEventListener(new PlayerScoreListener());
+                } else {
+                    Toast.makeText(MapsActivity.this, R.string.player_creation_error, Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+    }
 
     private class PlayerScoreListener implements ValueEventListener {
         @Override
