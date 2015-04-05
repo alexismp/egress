@@ -10,6 +10,7 @@ import android.util.Property;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,6 +40,7 @@ import com.melnykov.fab.FloatingActionButton;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -55,6 +57,7 @@ import icepick.Icicle;
 import timber.log.Timber;
 
 import static android.widget.Toast.LENGTH_LONG;
+import static fr.devoxx.egress.internal.Functions.distance;
 
 public class MapsActivity extends FragmentActivity {
 
@@ -62,11 +65,13 @@ public class MapsActivity extends FragmentActivity {
 
     private static final LatLng PARIS_GEO_POSITION = new LatLng(48.8534100, 2.3488000);
     private static final LatLngInterpolator latLngInterpolator = new LatLngInterpolator.LinearFixed();
+    private static final int CIRCLE_HINT_RADIUS = 1000;
 
     @InjectView(R.id.add_action) FloatingActionButton addActionButton;
     @InjectView(R.id.welcome) TextView welcomeView;
     @InjectView(R.id.status) TextView statusView;
     @InjectView(R.id.total_captures) TextView totalCapturesView;
+    @InjectView(R.id.leader_board_container) ViewGroup leaderBoardContainerView;
 
     private GoogleMap map; // Might be null if Google Play services APK is not available.
 
@@ -106,9 +111,10 @@ public class MapsActivity extends FragmentActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.maps_activity);
         init(savedInstanceState);
-        setupActionButton();
-        setupGeoFire();
-        setupPlayerInfos();
+        setUpActionButton();
+        setUpGeoFire();
+        setUpPlayerInfos();
+        setUpLeaderBoard();
         setUpMapIfNeeded();
         if (savedInstanceState == null) {
             eventLogger.logNewPlayer(player.name);
@@ -128,36 +134,36 @@ public class MapsActivity extends FragmentActivity {
     }
 
 
-    private void setupActionButton() {
+    private void setUpActionButton() {
         hideActionButtonOffset = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 100, getResources().getDisplayMetrics());
         addActionButton.setTranslationY(hideActionButtonOffset);
     }
 
-    private void setupGeoFire() {
+    private void setUpGeoFire() {
         firebase = new Firebase(BuildConfig.FIREBASE_URL);
         firebase.authWithOAuthToken("google", player.token, new AuthenticationEventListener());
         firebase.child(".info").child("connected").addValueEventListener(new ConnectionStateListener());
         geoFire = new GeoFire(firebase.child("_geofire"));
     }
 
-    private void setupPlayerInfos() {
+    private void setUpPlayerInfos() {
         final MapsActivity context = MapsActivity.this;
         if (!Preferences.hasPlayerId(context)) {
-            Firebase pushRef = firebase.child("players").push();
-            pushRef.setValue(player, new Firebase.CompletionListener() {
-                @Override
-                public void onComplete(FirebaseError firebaseError, Firebase firebase) {
-                    if (firebaseError == null) {
-                        Preferences.setPlayerId(context, firebase.getKey());
-                        firebase.addValueEventListener(new PlayerScoreListener());
-                    }
-                }
-            });
+            firebase.child("players").orderByChild("mail").
+                    startAt(player.mail).
+                    endAt(player.mail).
+                    addListenerForSingleValueEvent(new GetPlayerInfosListener());
         } else {
             firebase.child("players").
                     child(Preferences.getPlayerId(context)).
                     addValueEventListener(new PlayerScoreListener());
         }
+    }
+
+    private void setUpLeaderBoard() {
+        firebase.child("players").orderByChild("score").
+                limitToLast(3).
+                addValueEventListener(new LeaderBoardListener());
     }
 
     @Override
@@ -227,12 +233,14 @@ public class MapsActivity extends FragmentActivity {
         map.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(LatLng latLng) {
-                selectedMarker = null;
-                lastCircleCenter = latLng;
-                circleHasMoved = true;
-                animateCircle(circle, latLng, latLngInterpolator);
-                geoQuery.setCenter(new GeoLocation(latLng.latitude, latLng.longitude));
-                addActionButton.animate().translationY(hideActionButtonOffset).start();
+                if (distance(latLng, lastCircleCenter) > CIRCLE_HINT_RADIUS) {
+                    selectedMarker = null;
+                    lastCircleCenter = latLng;
+                    circleHasMoved = true;
+                    animateCircle(circle, latLng, latLngInterpolator);
+                    geoQuery.setCenter(new GeoLocation(latLng.latitude, latLng.longitude));
+                    addActionButton.animate().translationY(hideActionButtonOffset).start();
+                }
             }
         });
         map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
@@ -268,7 +276,7 @@ public class MapsActivity extends FragmentActivity {
                 .center(lastCircleCenter)
                 .fillColor(circleFillColor)
                 .strokeColor(getResources().getColor(R.color.circle_color))
-                .radius(1000);
+                .radius(CIRCLE_HINT_RADIUS);
         circle = map.addCircle(circleOptions);
     }
 
@@ -419,6 +427,64 @@ public class MapsActivity extends FragmentActivity {
         }
     }
 
+    private class GetPlayerInfosListener implements ValueEventListener {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            if (dataSnapshot.getValue() == null) {
+                createPlayer();
+            } else {
+                DataSnapshot firstChild = dataSnapshot.getChildren().iterator().next();
+                Map<String, Object> mapPlayerInfos = (Map<String, Object>) firstChild.getValue();
+                Preferences.setPlayerId(MapsActivity.this, firstChild.getKey());
+                player.score = (long) mapPlayerInfos.get(Player.FIELD_SCORE);
+                totalCapturesView.setText(getString(R.string.total_captures, mapPlayerInfos.get(Player.FIELD_SCORE)));
+            }
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+            Timber.d(firebaseError.getMessage());
+        }
+    }
+
+    private void createPlayer() {
+        Firebase pushRef = firebase.child("players").push();
+        pushRef.setValue(player, new Firebase.CompletionListener() {
+            @Override
+            public void onComplete(FirebaseError firebaseError, Firebase firebase) {
+                if (firebaseError == null) {
+                    Preferences.setPlayerId(MapsActivity.this, firebase.getKey());
+                    firebase.addValueEventListener(new PlayerScoreListener());
+                } else {
+                    Toast.makeText(MapsActivity.this, R.string.player_creation_error, Toast.LENGTH_LONG).show();
+                }
+            }
+        });
+    }
+
+    private class LeaderBoardListener implements ValueEventListener {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            Iterator<DataSnapshot> playerIt = dataSnapshot.getChildren().iterator();
+            leaderBoardContainerView.removeAllViews();
+            int index = 0;
+            while (playerIt.hasNext()) {
+                Map<String, Object> mapPlayerInfos = (Map<String, Object>) playerIt.next().getValue();
+                TextView playerCellView = new TextView(MapsActivity.this);
+                playerCellView.setText(getString(R.string.leader_board_entry,
+                        3 - index,
+                        mapPlayerInfos.get(Player.FIELD_NAME),
+                        mapPlayerInfos.get(Player.FIELD_SCORE)));
+                leaderBoardContainerView.addView(playerCellView, leaderBoardContainerView.getChildCount() - index);
+                index++;
+            }
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+
+        }
+    }
 
     private class PlayerScoreListener implements ValueEventListener {
         @Override
@@ -437,7 +503,7 @@ public class MapsActivity extends FragmentActivity {
     private class ConnectionStateListener implements ValueEventListener {
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
-            if (dataSnapshot.getValue() == true) {
+            if (Boolean.TRUE.equals(dataSnapshot.getValue())) {
                 statusView.setText(R.string.connected);
                 statusView.setTextColor(getResources().getColor(R.color.connected));
             } else {
