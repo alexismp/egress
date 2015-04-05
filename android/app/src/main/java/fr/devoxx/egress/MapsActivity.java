@@ -10,6 +10,7 @@ import android.util.Property;
 import android.util.TypedValue;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -39,6 +40,7 @@ import com.melnykov.fab.FloatingActionButton;
 
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
@@ -69,6 +71,7 @@ public class MapsActivity extends FragmentActivity {
     @InjectView(R.id.welcome) TextView welcomeView;
     @InjectView(R.id.status) TextView statusView;
     @InjectView(R.id.total_captures) TextView totalCapturesView;
+    @InjectView(R.id.leader_board_container) ViewGroup leaderBoardContainerView;
 
     private GoogleMap map; // Might be null if Google Play services APK is not available.
 
@@ -111,6 +114,7 @@ public class MapsActivity extends FragmentActivity {
         setUpActionButton();
         setUpGeoFire();
         setUpPlayerInfos();
+        setUpLeaderBoard();
         setUpMapIfNeeded();
         if (savedInstanceState == null) {
             eventLogger.logNewPlayer(player.name);
@@ -154,6 +158,12 @@ public class MapsActivity extends FragmentActivity {
                     child(Preferences.getPlayerId(context)).
                     addValueEventListener(new PlayerScoreListener());
         }
+    }
+
+    private void setUpLeaderBoard() {
+        firebase.child("players").orderByChild("score").
+                limitToLast(3).
+                addValueEventListener(new LeaderBoardListener());
     }
 
     @Override
@@ -450,6 +460,30 @@ public class MapsActivity extends FragmentActivity {
                 }
             }
         });
+    }
+
+    private class LeaderBoardListener implements ValueEventListener {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            Iterator<DataSnapshot> playerIt = dataSnapshot.getChildren().iterator();
+            leaderBoardContainerView.removeAllViews();
+            int index = 0;
+            while (playerIt.hasNext()) {
+                Map<String, Object> mapPlayerInfos = (Map<String, Object>) playerIt.next().getValue();
+                TextView playerCellView = new TextView(MapsActivity.this);
+                playerCellView.setText(getString(R.string.leader_board_entry,
+                        3 - index,
+                        mapPlayerInfos.get(Player.FIELD_NAME),
+                        mapPlayerInfos.get(Player.FIELD_SCORE)));
+                leaderBoardContainerView.addView(playerCellView, leaderBoardContainerView.getChildCount() - index);
+                index++;
+            }
+        }
+
+        @Override
+        public void onCancelled(FirebaseError firebaseError) {
+
+        }
     }
 
     private class PlayerScoreListener implements ValueEventListener {

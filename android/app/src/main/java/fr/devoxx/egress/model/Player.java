@@ -6,6 +6,7 @@ import android.os.Parcelable;
 public class Player implements Parcelable {
 
     public static final String FIELD_SCORE = "score";
+    public static final String FIELD_NAME = "name";
 
     public final String token;
     public final String name;

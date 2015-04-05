@@ -9,5 +9,7 @@
     <string name="disconnected">Offline</string>
     <string name="commit_in_progress">Capture en cours...</string>
     <string name="total_captures">Nb. total de captures: %1$s</string>
+    <string name="leader_board_entry">%1$s - %2$s %3$s</string>
     <string name="player_creation_error">La création du profil a échoué</string>
+    <string name="leader_board">Leader board</string>
 </resources>
