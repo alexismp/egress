@@ -1,15 +1,15 @@
 /*
-Copyright 2015 Google Inc. All rights reserved.
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this file except in compliance with the License.
-        You may obtain a copy of the License at
-        http://www.apache.org/licenses/LICENSE-2.0
-        Unless required by applicable law or agreed to in writing, software
-        distributed under the License is distributed on an "AS IS" BASIS,
-        WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-        See the License for the specific language governing permissions and
-        limitations under the License.
-*/
+ Copyright 2015 Google Inc. All rights reserved.
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+ http://www.apache.org/licenses/LICENSE-2.0
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.
+ */
 package devoxx.egress;
 
 import com.firebase.client.AuthData;
@@ -86,26 +86,31 @@ public class JavaResetter {
         });
 
         countDownLatch.await(); // block waiting for auth outcome
-        Map<String, Object> station = new HashMap<>();
-        station.put("owner", "");
-        station.put("when", 0);
-        station.put("OwnerMail", "");
+        if (firebase.getAuth() != null) {
 
-        for (int i = 1; i <= 6441; i++) {
-            final String key = "" + i;
+            Map<String, Object> station = new HashMap<>();
+            station.put("owner", "");
+            station.put("when", 0);
+            station.put("OwnerMail", "");
+
+            for (int i = 1; i <= 6441; i++) {
+                final String key = "" + i;
             // use single event listener so no further callbacks are made
-            // (and there is no need to remove the event listener)
-            firebase.child("" + i).updateChildren(station, new Firebase.CompletionListener() {
-                @Override
-                public void onComplete(FirebaseError error, Firebase ref) {
-                    if (error != null) {
-                        System.out.println("Data could not be saved. " + error.getMessage());
-                    } else {
-                        System.out.println("Data saved successfully.");
+                // (and there is no need to remove the event listener)
+                firebase.child("" + i).updateChildren(station, new Firebase.CompletionListener() {
+                    @Override
+                    public void onComplete(FirebaseError error, Firebase ref) {
+                        if (error != null) {
+                            System.out.println("Data could not be saved. " + error.getMessage());
+                        } else {
+                            System.out.print(".");
+                        }
                     }
-                }
-            });
+                });
+            }
 
+        } else {
+            System.out.println("Cannot proceed. Check password in " + configFile);
         }
     }
 
