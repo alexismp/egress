@@ -46,13 +46,13 @@ public class EgressLoggerServlet extends HttpServlet {
             String value = request.getParameter(param);
             System.out.println("****** Egress Logger ***** " + param + ":" + value);
 
-            boolean capturedStation = (param.indexOf("apture") != -1);
-//            boolean capturedStation = true;
+            boolean capturedStation = (param.equalsIgnoreCase("stationCaptured"));
             if (capturedStation) {
+                System.out.println("****** Egress scheduling station reset #" + value);
                 Queue myQueue = QueueFactory.getDefaultQueue();
                 myQueue.add(TaskOptions.Builder
                         .withUrl("/admin/reset-station")
-                        .param("station-id", value) // TODO: update station ID
+                        .param("station-id", value)
                         .countdownMillis(5*60*1000));    // 5 minutes reset time
             }
         }
