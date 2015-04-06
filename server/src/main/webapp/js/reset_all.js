@@ -35,7 +35,7 @@ function resetAll() {
         station.update({
             "owner": "",
             "when": "",
-            "OwnerMail":""
+            "ownerMail":""
         });
     }
 }

@@ -15,6 +15,11 @@ package org.alexismp.egress;
 import com.firebase.client.AuthData;
 import com.firebase.client.Firebase;
 import com.firebase.client.FirebaseError;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Enumeration;
@@ -24,10 +29,6 @@ import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 /**
  *
@@ -94,7 +95,7 @@ public class ResetStationServlet extends HttpServlet {
             Map<String, Object> station = new HashMap<>();
             station.put("owner", "");
             station.put("when", 0);
-            station.put("OwnerMail", "");
+            station.put("ownerMail", "");
 
             firebase.child(stationId).updateChildren(station, new Firebase.CompletionListener() {
                 @Override
