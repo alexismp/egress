@@ -12,4 +12,5 @@
     <string name="leader_board_entry">%1$s - %2$s %3$s</string>
     <string name="player_creation_error">La création du profil a échoué</string>
     <string name="leader_board">Leader board</string>
+    <string name="too_late">Trop tard !</string>
 </resources>

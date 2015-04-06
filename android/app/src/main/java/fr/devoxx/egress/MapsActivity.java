@@ -344,8 +344,10 @@ public class MapsActivity extends FragmentActivity {
             public void onComplete(FirebaseError firebaseError, boolean committed, DataSnapshot dataSnapshot) {
                 pendingCaptures.remove(station.getKey());
                 if (firebaseError != null) {
-                    Toast.makeText(MapsActivity.this, R.string.error, LENGTH_LONG).show();
-                } else {
+                    handleStationUpdated(dataSnapshot);
+                    addActionButton.animate().translationY(hideActionButtonOffset).start();
+                    Toast.makeText(MapsActivity.this, R.string.too_late, LENGTH_LONG).show();
+                } else if (committed) {
                     Station station = new Station(dataSnapshot);
                     if (player.mail.equals(station.getOwnerMail())) {
                         firebase.child("players").
