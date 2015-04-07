@@ -9,7 +9,7 @@
     <artifactId>EgressStations</artifactId>
 
     <properties>
-        <appengine.app.version>google-login</appengine.app.version>
+        <appengine.app.version>devoxxfr</appengine.app.version>
         <appengine.target.version>1.9.18</appengine.target.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>

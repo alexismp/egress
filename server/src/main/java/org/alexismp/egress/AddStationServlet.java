@@ -28,6 +28,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.CountDownLatch;
+import java.util.logging.Logger;
 
 /**
  * @author alexismp
@@ -37,6 +38,8 @@ public class AddStationServlet extends HttpServlet {
     GeoFire geofire;
     Firebase firebase;
     Map<String, Object> emptyOwner = new HashMap<>();
+    
+    private final Logger log = Logger.getLogger(this.getClass().getName());
 
     @Override
     public void init() throws ServletException {
@@ -60,7 +63,6 @@ public class AddStationServlet extends HttpServlet {
         throws ServletException, IOException {
         response.setContentType("text/html;charset=UTF-8");
         try (final PrintWriter out = response.getWriter()) {
-            /* TODO output your page here. You may use following sample code. */
             out.println("<!DOCTYPE html>");
             out.println("<html>");
             out.println("<head>");
@@ -87,11 +89,11 @@ public class AddStationServlet extends HttpServlet {
             firebase.child(key).removeValue();
             // use single event listener so no further callbacks are made
             // (and there is no need to remove the event listener)
-            System.out.println("Adding station [" + key + "] to firebase ... ");
+            log.info("Adding station [" + key + "] to firebase ... ");
             Map<String, Object> stationMap = lineToStationMap(line);
             firebase.child("stations").child(key).setValue(stationMap);
 
-            System.out.println("Updating station [" + key + "] location to geofire ... ");
+            log.info("Updating station [" + key + "] location to geofire ... ");
             GeoLocation location = new GeoLocation((Float) stationMap.get("latitude"), (Float) stationMap.get("longitude"));
             geofire.setLocation(key, location);
             i++;
@@ -153,13 +155,13 @@ public class AddStationServlet extends HttpServlet {
 
     private void login() {
         try {
-            System.out.println("Loging in...");
+            log.info("Loging in...");
             final CountDownLatch countDownLatch = new CountDownLatch(1);
             firebase.authWithPassword("alexis.mp@gmail.com", "foo",
                 new Firebase.AuthResultHandler() {
                     @Override
                     public void onAuthenticated(AuthData authData) {
-                        System.out.println("Authenticated with password : " + authData.getProviderData().get("displayName"));
+                        log.info("Authenticated with password : " + authData.getProviderData().get("displayName"));
                         countDownLatch.countDown();
                         // Authentication just completed successfully :)
                     }
@@ -167,12 +169,13 @@ public class AddStationServlet extends HttpServlet {
                     @Override
                     public void onAuthenticationError(FirebaseError error) {
                         // Something went wrong :(
+                        log.severe("Could not authenticate to Firebase !" + error.getMessage());
                         countDownLatch.countDown();
                     }
                 });
             countDownLatch.await();
         } catch (InterruptedException e) {
-            System.err.println(e.getMessage());
+            log.severe(e.getMessage());
         }
     }
 

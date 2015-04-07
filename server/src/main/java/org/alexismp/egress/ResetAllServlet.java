@@ -26,7 +26,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -35,6 +34,8 @@ import java.util.logging.Logger;
  */
 public class ResetAllServlet extends HttpServlet {
 
+    private final Logger log = Logger.getLogger(this.getClass().getName());
+    
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -46,7 +47,7 @@ public class ResetAllServlet extends HttpServlet {
      */
     protected void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
-        System.out.println("__!! About to reset all data !!__");
+        log.info("__!! About to reset all data !!__");
         try {
             final CountDownLatch countDownLatch = new CountDownLatch(1);
             Firebase firebase = new Firebase("https://shining-inferno-9452.firebaseio.com/stations");
@@ -61,29 +62,29 @@ public class ResetAllServlet extends HttpServlet {
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
-            System.out.println("Got Firebase credentials for "+ username);
+            log.info("Got Firebase credentials for "+ username);
 
             firebase.authWithPassword(username, password, new Firebase.AuthResultHandler() {
                 @Override
                 public void onAuthenticated(AuthData authData) {
-                    System.out.println("Auth succeeded: " + authData);
+                    log.info("Auth succeeded: " + authData);
                     countDownLatch.countDown();
                 }
 
                 @Override
                 public void onAuthenticationError(FirebaseError error) {
-                    System.out.println("Auth Failed: " + error);
+                    log.severe("Auth Failed: " + error);
                     countDownLatch.countDown();
                 }
             });
 
             countDownLatch.await(); // block waiting for auth outcome
             if (firebase.getAuth() == null) {
-                System.out.println("Login to Firebase failed, cannot continue. Cannot reset stations.");
+                log.severe("Login to Firebase failed, cannot continue. Cannot reset stations.");
                 return;
             }
 
-            System.out.println("!!!! Reseting all data !!!!");
+            log.info("!!!! Reseting all data !!!!");
             Map<String, Object> station = new HashMap<>();
             station.put("owner", "");
             station.put("when", 0);
@@ -94,17 +95,16 @@ public class ResetAllServlet extends HttpServlet {
                     @Override
                     public void onComplete(FirebaseError error, Firebase ref) {
                         if (error != null) {
-                            System.out.println("Data could not be saved. " + error.getMessage());
+                            log.severe("Data could not be saved. " + error.getMessage());
                         } else {
                             // Nothing: too chatty
-//                            System.out.println("Data saved successfully.");
                         }
                     }
                 });
             }
 
         } catch (InterruptedException ex) {
-            Logger.getLogger(ResetAllServlet.class.getName()).log(Level.SEVERE, null, ex);
+            log.severe(ex.toString());
         }
 
     }

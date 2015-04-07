@@ -27,7 +27,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.CountDownLatch;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -36,6 +35,8 @@ import java.util.logging.Logger;
  */
 public class ResetStationServlet extends HttpServlet {
 
+    private final Logger log = Logger.getLogger(this.getClass().getName());
+    
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -55,7 +56,7 @@ public class ResetStationServlet extends HttpServlet {
             while (params.hasMoreElements()) {
                 String param = (String) params.nextElement();
                 stationId = request.getParameter(param);
-                System.out.println("??? reset station servlet  ????????????? " + param + ":" + stationId);
+                log.info("??? reset station servlet  ????????????? " + param + ":" + stationId);
             }
 
             final CountDownLatch countDownLatch = new CountDownLatch(1);
@@ -71,25 +72,25 @@ public class ResetStationServlet extends HttpServlet {
             } catch (IOException ex) {
                 ex.printStackTrace();
             }
-            System.out.println("Got Firebase credentials for "+ username);
+            log.info("Got Firebase credentials for "+ username);
 
             firebase.authWithPassword(username, password, new Firebase.AuthResultHandler() {
                 @Override
                 public void onAuthenticated(AuthData authData) {
-                    System.out.println("Auth succeeded: " + authData);
+                    log.info("Auth succeeded: " + authData);
                     countDownLatch.countDown();
                 }
 
                 @Override
                 public void onAuthenticationError(FirebaseError error) {
-                    System.out.println("Auth Failed: " + error);
+                    log.severe("Auth Failed: " + error);
                     countDownLatch.countDown();
                 }
             });
 
             countDownLatch.await(); // block waiting for auth outcome
             if (firebase.getAuth() == null) {
-                System.out.println("Couldn't connect to Firebase. Cannot reset station.");
+                log.severe("Couldn't connect to Firebase. Cannot reset station.");
                 return;
             }
             Map<String, Object> station = new HashMap<>();
@@ -101,14 +102,14 @@ public class ResetStationServlet extends HttpServlet {
                 @Override
                 public void onComplete(FirebaseError error, Firebase ref) {
                     if (error != null) {
-                        System.out.println("Could not reset Station. " + error.getMessage());
+                        log.severe("Could not reset Station. " + error.getMessage());
                     } else {
-                        System.out.println("Station reset successfully.");
+                        log.info("Station reset successfully.");
                     }
                 }
             });
         } catch (InterruptedException ex) {
-            Logger.getLogger(ResetStationServlet.class.getName()).log(Level.SEVERE, null, ex);
+            log.severe(ex.toString());
         }
 
     }

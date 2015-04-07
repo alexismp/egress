@@ -16,8 +16,8 @@ import com.google.appengine.api.taskqueue.Queue;
 import com.google.appengine.api.taskqueue.QueueFactory;
 import com.google.appengine.api.taskqueue.TaskOptions;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.Enumeration;
+import java.util.logging.Logger;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -29,6 +29,8 @@ import javax.servlet.http.HttpServletResponse;
  */
 public class EgressLoggerServlet extends HttpServlet {
 
+    private final Logger log = Logger.getLogger(this.getClass().getName());
+    
     /**
      * Processes requests for both HTTP <code>GET</code> and <code>POST</code>
      * methods.
@@ -44,11 +46,11 @@ public class EgressLoggerServlet extends HttpServlet {
         while (params.hasMoreElements()) {
             String param = (String) params.nextElement();
             String value = request.getParameter(param);
-            System.out.println("****** Egress Logger ***** " + param + ":" + value);
+            log.info("****** Egress Logger ***** " + param + ":" + value);
 
             boolean capturedStation = (param.equalsIgnoreCase("stationCaptured"));
             if (capturedStation) {
-                System.out.println("****** Egress scheduling station reset #" + value);
+                log.info("****** Egress scheduling station reset #" + value);
                 Queue myQueue = QueueFactory.getDefaultQueue();
                 myQueue.add(TaskOptions.Builder
                         .withUrl("/admin/reset-station")
@@ -56,25 +58,6 @@ public class EgressLoggerServlet extends HttpServlet {
                         .countdownMillis(5*60*1000));    // 5 minutes reset time
             }
         }
-
-        response.setContentType("text/html;charset=UTF-8");
-        try (PrintWriter out = response.getWriter()) {
-            out.println("<!DOCTYPE html>");
-            out.println("<html>");
-            out.println("<head>");
-            out.println("<title>Servlet EgressLoggerServlet</title>");
-            out.println("</head>");
-            out.println("<body>");
-            out.println("<h1>Servlet EgressLoggerServlet at " + request.getContextPath() + "</h1>");
-            while (params.hasMoreElements()) {
-                String param = (String) params.nextElement();
-                String value = request.getParameter(param);
-                out.println("****** Egress Logger ***** " + param + ":" + value + "<br/>");
-            }
-            out.println("</body>");
-            out.println("</html>");
-        }
-
     }
 
     // <editor-fold defaultstate="collapsed" desc="HttpServlet methods. Click on the + sign on the left to edit the code.">
