@@ -1,5 +1,6 @@
 package fr.devoxx.egress.internal;
 
+import android.accounts.Account;
 import android.content.Context;
 
 import com.google.android.gms.auth.GoogleAuthException;
@@ -13,17 +14,18 @@ import fr.devoxx.egress.model.Player;
 import rx.Observable;
 import rx.Subscriber;
 
-import static fr.devoxx.egress.internal.PlayServices.SCOPE_PROFILE;
-
 public class Observables {
+
+    private static final String GOOGLE_TYPE = "com.google";
+    private static final String OAUTH2_PROFILE = "oauth2:profile";
 
     private Observables() {
 
     }
 
-    public static Observable<Player> fetchPlayerInfos(final Context context, final GoogleApiClient googleApiClient, final String mail){
+    public static Observable<Player> fetchPlayerInfos(final Context context, final GoogleApiClient googleApiClient, final String mail) {
         return Observable.combineLatest(
-                Observables.fetchOauthToken(context, mail, SCOPE_PROFILE),
+                Observables.fetchOauthToken(context, mail, OAUTH2_PROFILE),
                 Observables.fetchPlayerName(googleApiClient),
                 Functions.buildPlayer(mail));
     }
@@ -34,12 +36,19 @@ public class Observables {
             public void call(Subscriber<? super String> subscriber) {
                 if (!subscriber.isUnsubscribed()) {
                     try {
-                        subscriber.onNext(GoogleAuthUtil.getToken(context, mail, scope));
+                        Account account = new Account(mail, GOOGLE_TYPE);
+                        cleanToken(account);
+                        subscriber.onNext(GoogleAuthUtil.getToken(context, account, scope));
                         subscriber.onCompleted();
                     } catch (IOException | GoogleAuthException e) {
                         subscriber.onError(e);
                     }
                 }
+            }
+
+            private void cleanToken(Account account) throws IOException, GoogleAuthException {
+                String token = GoogleAuthUtil.getToken(context, account, scope);
+                GoogleAuthUtil.clearToken(context, token);
             }
         });
     }

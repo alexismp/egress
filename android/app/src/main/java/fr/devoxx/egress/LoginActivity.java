@@ -8,9 +8,11 @@ import android.view.View;
 import android.widget.ProgressBar;
 import android.widget.Toast;
 
+import com.google.android.gms.auth.UserRecoverableAuthException;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.Scope;
 import com.google.android.gms.plus.Plus;
 
 import butterknife.ButterKnife;
@@ -74,7 +76,7 @@ public class LoginActivity extends Activity {
                     }
                 })
                 .addApi(Plus.API)
-                .addScope(Plus.SCOPE_PLUS_LOGIN)
+                .addScope(new Scope("profile"))
                 .build();
     }
 
@@ -129,10 +131,15 @@ public class LoginActivity extends Activity {
                 signInClicked = false;
             }
 
+            if (resultCode != RESULT_CANCELED) {
+                signInButton.setVisibility(View.VISIBLE);
+                signInProgress.setVisibility(View.GONE);
+            }
+
             intentInProgress = false;
 
             if (!googleApiClient.isConnecting()) {
-                googleApiClient.connect();
+                googleApiClient.reconnect();
             }
         }
     }
@@ -152,9 +159,13 @@ public class LoginActivity extends Activity {
 
                     @Override
                     public void onError(Throwable e) {
-                        Toast.makeText(LoginActivity.this, R.string.error, LENGTH_LONG).show();
-                        signInButton.setVisibility(View.VISIBLE);
-                        signInProgress.setVisibility(View.GONE);
+                        if (e instanceof UserRecoverableAuthException) {
+                            startActivityForResult(((UserRecoverableAuthException) e).getIntent(), 1000);
+                        } else {
+                            Toast.makeText(LoginActivity.this, R.string.error, LENGTH_LONG).show();
+                            signInButton.setVisibility(View.VISIBLE);
+                            signInProgress.setVisibility(View.GONE);
+                        }
                     }
 
                     @Override
