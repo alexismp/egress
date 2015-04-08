@@ -31,6 +31,7 @@ import static rx.android.app.AppObservable.bindActivity;
 public class LoginActivity extends Activity {
 
     private static final int RC_SIGN_IN = 1001;
+    private static final int RC_AUTHORIZATION = 1003;
 
     private GoogleApiClient googleApiClient;
     private boolean signInClicked;
@@ -126,14 +127,14 @@ public class LoginActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        if (resultCode == RESULT_CANCELED) {
+            signInButton.setVisibility(View.VISIBLE);
+            signInProgress.setVisibility(View.GONE);
+        }
+
         if (requestCode == RC_SIGN_IN) {
             if (resultCode != RESULT_OK) {
                 signInClicked = false;
-            }
-
-            if (resultCode != RESULT_CANCELED) {
-                signInButton.setVisibility(View.VISIBLE);
-                signInProgress.setVisibility(View.GONE);
             }
 
             intentInProgress = false;
@@ -160,7 +161,7 @@ public class LoginActivity extends Activity {
                     @Override
                     public void onError(Throwable e) {
                         if (e instanceof UserRecoverableAuthException) {
-                            startActivityForResult(((UserRecoverableAuthException) e).getIntent(), 1000);
+                            startActivityForResult(((UserRecoverableAuthException) e).getIntent(), RC_AUTHORIZATION);
                         } else {
                             Toast.makeText(LoginActivity.this, R.string.error, LENGTH_LONG).show();
                             signInButton.setVisibility(View.VISIBLE);
