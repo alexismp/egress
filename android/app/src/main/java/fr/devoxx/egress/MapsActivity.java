@@ -121,6 +121,12 @@ public class MapsActivity extends FragmentActivity {
         }
     }
 
+    @Override
+    protected void onStart() {
+        super.onStart();
+        circleHasMoved = false;
+    }
+
     private void init(Bundle savedInstanceState) {
         ButterKnife.inject(this);
         Icepick.restoreInstanceState(this, savedInstanceState);
@@ -415,7 +421,7 @@ public class MapsActivity extends FragmentActivity {
 
         @Override
         public void onCancelled(FirebaseError firebaseError) {
-
+            Timber.d("Couldn't get station data %s", firebaseError);
         }
     }
 
@@ -484,7 +490,7 @@ public class MapsActivity extends FragmentActivity {
 
         @Override
         public void onCancelled(FirebaseError firebaseError) {
-
+            Timber.d("Couldn't get leader board %s", firebaseError);
         }
     }
 
@@ -498,7 +504,7 @@ public class MapsActivity extends FragmentActivity {
 
         @Override
         public void onCancelled(FirebaseError firebaseError) {
-
+            Timber.d("Couldn't get player score %s", firebaseError);
         }
     }
 
@@ -516,7 +522,7 @@ public class MapsActivity extends FragmentActivity {
 
         @Override
         public void onCancelled(FirebaseError firebaseError) {
-
+            Timber.d("Couldn't get connection state %s", firebaseError);
         }
     }
 
