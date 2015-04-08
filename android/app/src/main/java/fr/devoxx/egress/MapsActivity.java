@@ -167,6 +167,7 @@ public class MapsActivity extends FragmentActivity {
     }
 
     private void setUpLeaderBoard() {
+        leaderBoardContainerView.setVisibility(View.GONE);
         firebase.child("players").orderByChild("score").
                 limitToLast(3).
                 addValueEventListener(new LeaderBoardListener());
@@ -262,7 +263,7 @@ public class MapsActivity extends FragmentActivity {
                         inflate(R.layout.train_station_info_window_view, null);
                 Station station = displayedStationsCache.get(marker);
                 infoWindowView.bind(station);
-                addActionButton.animate().translationY(station.isFree() ? 0 : hideActionButtonOffset).start();
+                addActionButton.animate().translationY(station.isFree() && !pendingCaptures.contains(station.getKey()) ? 0 : hideActionButtonOffset).start();
                 return infoWindowView;
             }
         });
@@ -337,6 +338,7 @@ public class MapsActivity extends FragmentActivity {
     public void onAddActionClicked() {
         final Station station = displayedStationsCache.get(selectedMarker);
         pendingCaptures.add(station.getKey());
+        addActionButton.animate().translationY(hideActionButtonOffset).start();
         firebase.child("stations").child(station.getKey()).runTransaction(new Transaction.Handler() {
             @Override
             public Transaction.Result doTransaction(MutableData mutableData) {
@@ -362,7 +364,6 @@ public class MapsActivity extends FragmentActivity {
                         eventLogger.logStationCapturedBy(station.getKey(), player.name);
                     }
                     handleStationUpdated(dataSnapshot);
-                    addActionButton.animate().translationY(hideActionButtonOffset).start();
                 }
             }
         });
@@ -473,6 +474,7 @@ public class MapsActivity extends FragmentActivity {
     private class LeaderBoardListener implements ValueEventListener {
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
+            leaderBoardContainerView.setVisibility(View.VISIBLE);
             Iterator<DataSnapshot> playerIt = dataSnapshot.getChildren().iterator();
             leaderBoardContainerView.removeAllViews();
             int index = 0;
