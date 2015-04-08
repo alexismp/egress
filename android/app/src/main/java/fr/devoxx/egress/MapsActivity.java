@@ -71,6 +71,7 @@ public class MapsActivity extends FragmentActivity {
     @InjectView(R.id.welcome) TextView welcomeView;
     @InjectView(R.id.status) TextView statusView;
     @InjectView(R.id.total_captures) TextView totalCapturesView;
+    @InjectView(R.id.leader_board_card) ViewGroup leaderBoardCardView;
     @InjectView(R.id.leader_board_container) ViewGroup leaderBoardContainerView;
 
     private GoogleMap map; // Might be null if Google Play services APK is not available.
@@ -167,7 +168,7 @@ public class MapsActivity extends FragmentActivity {
     }
 
     private void setUpLeaderBoard() {
-        leaderBoardContainerView.setVisibility(View.GONE);
+        leaderBoardCardView.setVisibility(View.GONE);
         firebase.child("players").orderByChild("score").
                 limitToLast(3).
                 addValueEventListener(new LeaderBoardListener());
@@ -474,7 +475,7 @@ public class MapsActivity extends FragmentActivity {
     private class LeaderBoardListener implements ValueEventListener {
         @Override
         public void onDataChange(DataSnapshot dataSnapshot) {
-            leaderBoardContainerView.setVisibility(View.VISIBLE);
+            leaderBoardCardView.setVisibility(View.VISIBLE);
             Iterator<DataSnapshot> playerIt = dataSnapshot.getChildren().iterator();
             leaderBoardContainerView.removeAllViews();
             int index = 0;
