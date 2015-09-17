@@ -21,11 +21,11 @@ import butterknife.OnClick;
 import fr.devoxx.egress.internal.Observables;
 import fr.devoxx.egress.model.Player;
 import rx.Subscriber;
+import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.schedulers.Schedulers;
 
 import static android.widget.Toast.LENGTH_LONG;
-import static rx.android.app.AppObservable.bindActivity;
 
 
 public class LoginActivity extends Activity {
@@ -40,6 +40,8 @@ public class LoginActivity extends Activity {
 
     @InjectView(R.id.sign_in_button) SignInButton signInButton;
     @InjectView(R.id.sign_in_progress) ProgressBar signInProgress;
+
+    private Subscription fetchPlayerSubscription;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -89,6 +91,9 @@ public class LoginActivity extends Activity {
 
     @Override
     protected void onStop() {
+        if(fetchPlayerSubscription != null && !fetchPlayerSubscription.isUnsubscribed()){
+            fetchPlayerSubscription.unsubscribe();
+        }
         googleApiClient.disconnect();
         super.onStop();
     }
@@ -149,7 +154,7 @@ public class LoginActivity extends Activity {
         signInButton.setVisibility(View.GONE);
         signInProgress.setVisibility(View.VISIBLE);
         final String mail = Plus.AccountApi.getAccountName(googleApiClient);
-        bindActivity(this, Observables.fetchPlayerInfos(LoginActivity.this, googleApiClient, mail))
+        fetchPlayerSubscription = Observables.fetchPlayerInfos(LoginActivity.this, googleApiClient, mail)
                 .subscribeOn(Schedulers.newThread())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Subscriber<Player>() {

@@ -4,6 +4,7 @@ import android.animation.Animator;
 import android.animation.ObjectAnimator;
 import android.animation.TypeEvaluator;
 import android.graphics.Color;
+import android.location.Location;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
 import android.util.Property;
@@ -220,37 +221,45 @@ public class MapsActivity extends FragmentActivity {
      * This should only be called once and when we are sure that {@link #map} is not null.
      */
     private void setUpMap() {
-        if (lastCircleCenter == null) {
-            lastCircleCenter = PARIS_GEO_POSITION;
-        }
-
         map.getUiSettings().setMapToolbarEnabled(false);
+        map.setMyLocationEnabled(true);
 
         freeMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station);
         pendingMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_pending);
         lockedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_locked);
         ownedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_owned);
 
-        setupCircleHint();
-
-        map.moveCamera(CameraUpdateFactory.newLatLngZoom(lastCircleCenter, 13));
-
-        geoQuery = geoFire.queryAtLocation(new GeoLocation(lastCircleCenter.latitude, lastCircleCenter.longitude), 1);
-        geoQuery.addGeoQueryEventListener(new StationGeoQueryListener());
-
-        map.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+        map.setOnMyLocationChangeListener(new GoogleMap.OnMyLocationChangeListener() {
             @Override
-            public void onMapClick(LatLng latLng) {
-                if (distance(latLng, lastCircleCenter) > CIRCLE_HINT_RADIUS) {
-                    selectedMarker = null;
-                    lastCircleCenter = latLng;
-                    circleHasMoved = true;
-                    animateCircle(circle, latLng, latLngInterpolator);
-                    geoQuery.setCenter(new GeoLocation(latLng.latitude, latLng.longitude));
-                    addActionButton.animate().translationY(hideActionButtonOffset).start();
+            public void onMyLocationChange(Location location) {
+                map.setOnMyLocationChangeListener(null);
+                if (lastCircleCenter == null) {
+                    lastCircleCenter = new LatLng(location.getLatitude(), location.getLongitude());
                 }
+
+                setupCircleHint();
+
+                map.moveCamera(CameraUpdateFactory.newLatLngZoom(lastCircleCenter, 13));
+
+                geoQuery = geoFire.queryAtLocation(new GeoLocation(lastCircleCenter.latitude, lastCircleCenter.longitude), 1);
+                geoQuery.addGeoQueryEventListener(new StationGeoQueryListener());
+
+                map.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+                    @Override
+                    public void onMapClick(LatLng latLng) {
+                        if (distance(latLng, lastCircleCenter) > CIRCLE_HINT_RADIUS) {
+                            selectedMarker = null;
+                            lastCircleCenter = latLng;
+                            circleHasMoved = true;
+                            animateCircle(circle, latLng, latLngInterpolator);
+                            geoQuery.setCenter(new GeoLocation(latLng.latitude, latLng.longitude));
+                            addActionButton.animate().translationY(hideActionButtonOffset).start();
+                        }
+                    }
+                });
             }
         });
+
         map.setInfoWindowAdapter(new GoogleMap.InfoWindowAdapter() {
             @Override
             public View getInfoWindow(Marker marker) {
