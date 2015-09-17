@@ -2,7 +2,7 @@
     <string name="app_name">Egress</string>
     <string name="title_activity_home">Egress</string>
     <string name="title_activity_login">Egress</string>
-    <string name="choose_account_mandatory">You must choose an account</string>
+    <string name="choose_account_mandatory">Vous devez choisir un compte</string>
     <string name="error">Une erreur est survenue</string>
     <string name="welcome">Bienvenue %1$s</string>
     <string name="connected">Online</string>

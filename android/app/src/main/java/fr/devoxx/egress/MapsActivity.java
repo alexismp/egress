@@ -3,9 +3,13 @@ package fr.devoxx.egress;
 import android.animation.Animator;
 import android.animation.ObjectAnimator;
 import android.animation.TypeEvaluator;
+import android.app.Activity;
+import android.content.Intent;
+import android.content.IntentSender;
 import android.graphics.Color;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.FragmentActivity;
 import android.util.Property;
 import android.util.TypedValue;
@@ -26,6 +30,15 @@ import com.firebase.geofire.GeoFire;
 import com.firebase.geofire.GeoLocation;
 import com.firebase.geofire.GeoQuery;
 import com.firebase.geofire.GeoQueryEventListener;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.Status;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.LocationSettingsResult;
+import com.google.android.gms.location.LocationSettingsStatusCodes;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.GoogleMapOptions;
@@ -58,15 +71,18 @@ import icepick.Icicle;
 import timber.log.Timber;
 
 import static android.widget.Toast.LENGTH_LONG;
+import static com.google.android.gms.location.LocationServices.SettingsApi;
 import static fr.devoxx.egress.internal.Functions.distance;
 
 public class MapsActivity extends FragmentActivity {
 
     public static final String EXTRA_PLAYER = "fr.devoxx.egress.EXTRA_PLAYER";
 
-    private static final LatLng PARIS_GEO_POSITION = new LatLng(48.8534100, 2.3488000);
+    private static final LatLng LA_ROCHELLE_GEO_POSITION = new LatLng(46.151711, -1.150086);
     private static final LatLngInterpolator latLngInterpolator = new LatLngInterpolator.LinearFixed();
     private static final int CIRCLE_HINT_RADIUS = 1000;
+    private static final int REQUEST_CHECK_SETTINGS = 10001;
+    private static final int REQUEST_CHECK_SERVICES = 10002;
 
     @InjectView(R.id.add_action) FloatingActionButton addActionButton;
     @InjectView(R.id.welcome) TextView welcomeView;
@@ -108,6 +124,12 @@ public class MapsActivity extends FragmentActivity {
 
     private EventLogger eventLogger = new EventLogger();
 
+    private GoogleApiClient googleApiClient;
+
+    private Boolean locationServicesEnabled;
+
+    private Handler postponer = new Handler();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -121,12 +143,105 @@ public class MapsActivity extends FragmentActivity {
         if (savedInstanceState == null) {
             eventLogger.logNewPlayer(player.name);
         }
+        googleApiClient = new GoogleApiClient.Builder(this)
+                .addApi(LocationServices.API)
+                .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
+                    @Override
+                    public void onConnected(Bundle bundle) {
+                        postponer.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                LocationRequest locationRequest = LocationRequest.create().
+                                        setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
+                                LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
+                                        .addLocationRequest(locationRequest);
+                                SettingsApi.checkLocationSettings(googleApiClient, builder.build()).
+                                        setResultCallback(new ResultCallback<LocationSettingsResult>() {
+                                            @Override
+                                            public void onResult(LocationSettingsResult locationSettingsResult) {
+                                                final Status status = locationSettingsResult.getStatus();
+                                                if (LocationSettingsStatusCodes.RESOLUTION_REQUIRED != status.getStatusCode()) {
+                                                    locationServicesEnabled = status.getStatusCode() == LocationSettingsStatusCodes.SUCCESS;
+                                                    setUpMapIfNeeded();
+                                                } else {
+                                                    requestLocationServicesActivation(status);
+                                                }
+                                            }
+                                        });
+                            }
+                        }, 800);
+                    }
+
+                    @Override
+                    public void onConnectionSuspended(int i) {
+
+                    }
+                })
+                .addOnConnectionFailedListener(new GoogleApiClient.OnConnectionFailedListener() {
+                    @Override
+                    public void onConnectionFailed(ConnectionResult connectionResult) {
+                        if (connectionResult.hasResolution()) {
+                            try {
+                                // Show the dialog by calling startResolutionForResult(),
+                                // and check the result in onActivityResult().
+                                connectionResult.startResolutionForResult(MapsActivity.this, REQUEST_CHECK_SERVICES);
+                            } catch (IntentSender.SendIntentException e) {
+                                // Ignore the error.
+                                locationServicesEnabled = false;
+                                setUpMapIfNeeded();
+                            }
+                        } else {
+                            locationServicesEnabled = false;
+                            setUpMapIfNeeded();
+                        }
+                    }
+                })
+                .build();
+    }
+
+    private void requestLocationServicesActivation(Status status) {
+        // Location settings are not satisfied. But could be fixed by showing the user
+        // a dialog.
+        try {
+            // Show the dialog by calling startResolutionForResult(),
+            // and check the result in onActivityResult().
+            status.startResolutionForResult(MapsActivity.this, REQUEST_CHECK_SETTINGS);
+        } catch (IntentSender.SendIntentException e) {
+            // Ignore the error.
+            locationServicesEnabled = false;
+            setUpMapIfNeeded();
+        }
     }
 
     @Override
     protected void onStart() {
         super.onStart();
         circleHasMoved = false;
+        if (!googleApiClient.isConnected() && !googleApiClient.isConnecting()) {
+            googleApiClient.connect();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        switch (requestCode) {
+            case REQUEST_CHECK_SETTINGS:
+                locationServicesEnabled = resultCode == Activity.RESULT_OK;
+                setUpMapIfNeeded();
+                break;
+            case REQUEST_CHECK_SERVICES:
+                // Nothing to handle, should connect to google api client
+                break;
+        }
+    }
+
+    @Override
+    protected void onStop() {
+        if (googleApiClient.isConnected() || googleApiClient.isConnecting()) {
+            googleApiClient.disconnect();
+        }
+        super.onStop();
     }
 
     private void init(Bundle savedInstanceState) {
@@ -208,9 +323,11 @@ public class MapsActivity extends FragmentActivity {
             // Try to obtain the map from the SupportMapFragment.
             map = mapFragment.getMap();
             // Check if we were successful in obtaining the map.
-            if (map != null) {
+            if (map != null && locationServicesEnabled != null) {
                 setUpMap();
             }
+        } else if (locationServicesEnabled != null) {
+            setUpMap();
         }
     }
 
@@ -229,34 +346,43 @@ public class MapsActivity extends FragmentActivity {
         lockedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_locked);
         ownedMarkerIconDescriptor = BitmapDescriptorFactory.fromResource(R.drawable.ic_maps_train_station_owned);
 
-        map.setOnMyLocationChangeListener(new GoogleMap.OnMyLocationChangeListener() {
-            @Override
-            public void onMyLocationChange(Location location) {
-                map.setOnMyLocationChangeListener(null);
-                if (lastCircleCenter == null) {
-                    lastCircleCenter = new LatLng(location.getLatitude(), location.getLongitude());
+        if (!locationServicesEnabled) {
+            setUpMapInfos(LA_ROCHELLE_GEO_POSITION);
+        } else {
+            final Toast toast = Toast.makeText(this, "Localisation en cours...", LENGTH_LONG);
+            toast.show();
+            map.setOnMyLocationChangeListener(new GoogleMap.OnMyLocationChangeListener() {
+                @Override
+                public void onMyLocationChange(Location location) {
+                    toast.cancel();
+                    map.setOnMyLocationChangeListener(null);
+                    setUpMapInfos(new LatLng(location.getLatitude(), location.getLongitude()));
                 }
+            });
+        }
+    }
 
-                setupCircleHint();
+    private void setUpMapInfos(LatLng location) {
+        lastCircleCenter = location;
 
-                map.moveCamera(CameraUpdateFactory.newLatLngZoom(lastCircleCenter, 13));
+        setupCircleHint();
 
-                geoQuery = geoFire.queryAtLocation(new GeoLocation(lastCircleCenter.latitude, lastCircleCenter.longitude), 1);
-                geoQuery.addGeoQueryEventListener(new StationGeoQueryListener());
+        map.moveCamera(CameraUpdateFactory.newLatLngZoom(lastCircleCenter, 13));
 
-                map.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
-                    @Override
-                    public void onMapClick(LatLng latLng) {
-                        if (distance(latLng, lastCircleCenter) > CIRCLE_HINT_RADIUS) {
-                            selectedMarker = null;
-                            lastCircleCenter = latLng;
-                            circleHasMoved = true;
-                            animateCircle(circle, latLng, latLngInterpolator);
-                            geoQuery.setCenter(new GeoLocation(latLng.latitude, latLng.longitude));
-                            addActionButton.animate().translationY(hideActionButtonOffset).start();
-                        }
-                    }
-                });
+        geoQuery = geoFire.queryAtLocation(new GeoLocation(lastCircleCenter.latitude, lastCircleCenter.longitude), 1);
+        geoQuery.addGeoQueryEventListener(new StationGeoQueryListener());
+
+        map.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
+            @Override
+            public void onMapClick(LatLng latLng) {
+                if (distance(latLng, lastCircleCenter) > CIRCLE_HINT_RADIUS) {
+                    selectedMarker = null;
+                    lastCircleCenter = latLng;
+                    circleHasMoved = true;
+                    animateCircle(circle, latLng, latLngInterpolator);
+                    geoQuery.setCenter(new GeoLocation(latLng.latitude, latLng.longitude));
+                    addActionButton.animate().translationY(hideActionButtonOffset).start();
+                }
             }
         });
 
@@ -277,6 +403,7 @@ public class MapsActivity extends FragmentActivity {
                 return infoWindowView;
             }
         });
+
         map.setOnInfoWindowClickListener(new GoogleMap.OnInfoWindowClickListener() {
             @Override
             public void onInfoWindowClick(Marker marker) {
