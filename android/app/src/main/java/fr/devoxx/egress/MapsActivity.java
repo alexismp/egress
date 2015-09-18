@@ -415,13 +415,15 @@ public class MapsActivity extends FragmentActivity {
     }
 
     private void setupCircleHint() {
-        circleFillColor = getResources().getColor(R.color.circle_color);
-        CircleOptions circleOptions = new CircleOptions()
-                .center(lastCircleCenter)
-                .fillColor(circleFillColor)
-                .strokeColor(getResources().getColor(R.color.circle_color))
-                .radius(CIRCLE_HINT_RADIUS);
-        circle = map.addCircle(circleOptions);
+        if (circle == null) {
+            circleFillColor = getResources().getColor(R.color.circle_color);
+            CircleOptions circleOptions = new CircleOptions()
+                    .center(lastCircleCenter)
+                    .fillColor(circleFillColor)
+                    .strokeColor(getResources().getColor(R.color.circle_color))
+                    .radius(CIRCLE_HINT_RADIUS);
+            circle = map.addCircle(circleOptions);
+        }
     }
 
     void animateCircle(final Circle circle, LatLng finalPosition, final LatLngInterpolator latLngInterpolator) {

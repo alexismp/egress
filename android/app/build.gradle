@@ -28,8 +28,8 @@ android {
         applicationId "fr.devoxx.egress"
         minSdkVersion 15
         targetSdkVersion 23
-        versionCode 4
-        versionName "1.0.3"
+        versionCode 6
+        versionName "1.0.5"
 
         manifestPlaceholders = [mapsApiKey: System.properties["EGRESS_MAPS_API_KEY"]]
 
