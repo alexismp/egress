@@ -11,5 +11,3 @@ The train stations are from this French government Open Data set: [Gares ferrovi
 The Android application was built using Android Studio and uses the [Firebase Android SDK](https://www.firebase.com/docs/android/api/) for data backend and real-time features.
 
 The backend is a Maven project which can be used in your favorite IDE (including Android Studio!).
-
-**This is not an official Google product (experimental or otherwise), it is just code that happens to be owned by Google.**
