@@ -1,5 +1,4 @@
 /*
- Copyright 2015 Google Inc. All rights reserved.
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
  You may obtain a copy of the License at
@@ -26,10 +25,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- *
- * @author alexismp
- */
 public class JavaResetter {
 
     Firebase firebase;
